@@ -11,7 +11,7 @@ use stationeers_mips::{
     instructions::{
         Arithmetic, DeviceIo, FlowControl, Instruction, Misc, Stack as StackInstruction,
     },
-    types::{Device, DeviceVariable, Number, Register},
+    types::{Device, DeviceVariable, Number, Register, RegisterOrNumber},
 };
 use std::str::FromStr;
 
@@ -422,14 +422,14 @@ pub(crate) fn generate_statement(
                         codegen.add_instruction(Instruction::from(DeviceIo::StoreDeviceVariable {
                             device,
                             variable,
-                            register: Register::R0,
+                            register: RegisterOrNumber::Register(Register::R0),
                         }));
                     } else {
                         // reserve space for the second pass by adding a placeholder instruction
                         codegen.add_instruction(Instruction::from(DeviceIo::StoreDeviceVariable {
                             device: Device::D0,
                             variable: DeviceVariable::Setting,
-                            register: Register::R0,
+                            register: RegisterOrNumber::Register(Register::R0),
                         }));
                     }
                 }

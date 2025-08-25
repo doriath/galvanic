@@ -149,6 +149,15 @@ pub enum Number {
     Float(f32),
 }
 
+impl std::convert::Into<f64> for &Number {
+    fn into(self) -> f64 {
+        match self {
+            Number::Int(x) => *x as f64,
+            Number::Float(x) => (*x).into(),
+        }
+    }
+}
+
 impl std::fmt::Display for Number {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

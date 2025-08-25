@@ -90,19 +90,19 @@ pub enum DeviceIo {
     },
     /// Stores register to var on device
     ///
-    /// s d? var r?
+    /// s d? var a(r?|num)
     StoreDeviceVariable {
         device: Device,
         variable: DeviceVariable,
-        register: Register,
+        register: RegisterOrNumber,
     },
     /// Stores register value to var on all output network devices with the provided type hash.
     ///
-    /// sb type var r?
+    /// sb type var a(r?|num)
     StoreBatch {
         type_hash: TypeHash,
         variable: DeviceVariable,
-        register: Register,
+        register: RegisterOrNumber,
     },
 }
 

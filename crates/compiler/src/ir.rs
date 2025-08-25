@@ -21,7 +21,7 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
                 identifier,
                 arguments,
             } => {
-                if identifier.to_string() == "set".to_string() {
+                if identifier.to_string() == "store".to_string() {
                     println!("works!");
                 }
                 if arguments.len() != 3 {}
@@ -33,7 +33,7 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
         }
         println!("{:?}", stmt);
     }
-    Ok("move r0 1\ns d0 Setting r0".to_owned())
+    Ok("s d0 Setting 1".to_owned())
 }
 
 #[cfg(test)]
@@ -63,7 +63,7 @@ mod tests {
             .parse(
                 r"
                 def d0 as GasSensor;
-                set(GasSensor, Setting, 1);
+                store(GasSensor, Setting, 1);
                 ",
             )
             .unwrap();

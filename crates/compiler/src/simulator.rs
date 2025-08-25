@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use stationeers_mips::instructions::{DeviceIo, Instruction, Misc};
-use stationeers_mips::types::{Device, DeviceVariable, Number, Register};
+use stationeers_mips::types::{Device, DeviceVariable, Number, Register, RegisterOrNumber};
 
 pub struct Simulator {
     instructions: Vec<Instruction>,
@@ -75,7 +75,13 @@ impl State {
                 variable,
                 register,
             } => {
-                let value: f64 = self.registers.get(register).copied().unwrap_or_default();
+                let value: f64 = match register {
+                    RegisterOrNumber::Register(r) => {
+                        self.registers.get(r).copied().unwrap_or_default()
+                    }
+                    RegisterOrNumber::Number(x) => x.into(),
+                };
+
                 println!("Value = {}", value);
                 self.devices
                     .entry(device.clone())
