@@ -10,6 +10,7 @@ use crate::{
 pub mod codegen;
 pub mod error;
 pub mod expr;
+pub mod ir;
 pub mod stack;
 pub mod statement;
 pub mod util;
@@ -61,4 +62,9 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> Result<String> 
     let _main_line = codegen.labels.get("main").ok_or(Error::UndefinedMain)?;
 
     Ok(codegen.get_code())
+}
+
+/// Generates the MIPS assemby based on ayysee language.
+pub fn generate_program_ng(program: ayysee_parser::ast::Program) -> Result<String> {
+    Ok(crate::ir::generate_program(program).unwrap())
 }

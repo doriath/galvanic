@@ -1,5 +1,6 @@
 use crate::{commands::Commands, error::Result};
 use ayysee_compiler::generate_program;
+use ayysee_compiler::generate_program_ng;
 use ayysee_parser::grammar::ProgramParser;
 use clap::Parser;
 

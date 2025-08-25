@@ -45,11 +45,6 @@ macro_rules! assign_variable {
 /// usage: `stack_push!(codegen, Number::Int(0));`
 ///
 /// expands to:
-/// ```
-/// codegen.add_instruction(StackInstruction::Push {
-///     a: Number::Int(0).into(),
-/// }.into());
-///  ```
 macro_rules! stack_push {
     ($codegen:ident, $value:expr) => {
         $codegen.add_instruction(StackInstruction::Push { a: $value.into() }.into());

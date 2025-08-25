@@ -7,4 +7,5 @@ edition = { workspace = true }
 ayysee-parser = { path = "../parser" }
 stationeers-mips = { path = "../mips" }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 tracing = { workspace = true }
