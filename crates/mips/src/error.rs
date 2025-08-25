@@ -2,7 +2,7 @@
 pub enum Error {
     #[error("todo")]
     Todo,
-    #[error("failed to parse")]
+    #[error("failed to parse: {0}")]
     ParseError(String),
 }
 

@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::types::{Number, Register, RegisterOrNumber};
 
 /// An enum representing miscellaneous Stationeers MIPS instructions.
@@ -57,6 +58,34 @@ impl std::fmt::Display for Misc {
             Misc::Yield => write!(f, "yield"),
             Misc::Label { name } => write!(f, "{name}:"),
             Misc::Comment { comment } => write!(f, "# {comment}"),
+        }
+    }
+}
+
+impl std::str::FromStr for Misc {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split_whitespace();
+
+        let command = parts
+            .next()
+            .ok_or_else(|| Error::ParseError(s.to_string()))?;
+
+        match command {
+            "yield" => Ok(Misc::Yield),
+            "move" => {
+                let register = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                let value = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                Ok(Misc::Move { register, a: value })
+            }
+            _ => Err(Error::ParseError(s.to_string())),
         }
     }
 }

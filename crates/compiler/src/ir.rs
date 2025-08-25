@@ -33,24 +33,26 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
         }
         println!("{:?}", stmt);
     }
-    Ok("s d0 Setting 1".to_owned())
+    Ok("move r0 1\ns d0 Setting r0".to_owned())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::generate_program_ng;
+    use crate::simulator::Simulator;
     use ayysee_parser::grammar::ProgramParser;
+    use stationeers_mips::types::{Device, DeviceVariable};
+    use std::str::FromStr;
 
     fn parse_mips(
         program: &str,
     ) -> anyhow::Result<std::vec::Vec<stationeers_mips::instructions::Instruction>> {
-        let ret = vec![];
-
+        let mut ret = vec![];
         for line in program.lines() {
             let line = line.trim();
+            ret.push(line.parse()?)
         }
-
         Ok(ret)
     }
 
@@ -66,7 +68,10 @@ mod tests {
             )
             .unwrap();
         let mips = generate_program_ng(parsed).unwrap();
+        println!("{}", mips);
         let instructions = parse_mips(&mips).unwrap();
-        assert_eq!(mips, "s d0 Setting 1");
+        let mut simulator = Simulator::new(instructions);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
     }
 }

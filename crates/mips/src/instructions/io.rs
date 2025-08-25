@@ -294,7 +294,27 @@ impl std::str::FromStr for DeviceIo {
                     variable,
                 })
             }
-            _ => todo!(),
+            "s" => {
+                let device = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                let variable = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                let register = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+
+                Ok(DeviceIo::StoreDeviceVariable {
+                    device,
+                    variable,
+                    register,
+                })
+            }
+            _ => Err(Error::ParseError(s.to_string())),
         }
     }
 }

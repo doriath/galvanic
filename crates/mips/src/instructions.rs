@@ -14,6 +14,8 @@ pub use misc::Misc;
 pub use stack::Stack;
 pub use variable::VariableSelection;
 
+use crate::error::Error;
+
 /// An enum representing all possible Stationeers MIPS instructions.
 /// Each variant is a different instruction and corresponds to a single line of MIPS code.
 pub enum Instruction {
@@ -81,5 +83,19 @@ impl From<Stack> for Instruction {
 impl From<Misc> for Instruction {
     fn from(misc: Misc) -> Self {
         Instruction::Misc(misc)
+    }
+}
+
+impl std::str::FromStr for Instruction {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(device_io) = s.parse::<DeviceIo>() {
+            Ok(Instruction::DeviceIo(device_io))
+        } else if let Ok(misc) = s.parse::<Misc>() {
+            Ok(Instruction::Misc(misc))
+        } else {
+            Err(Error::ParseError(s.to_string()))
+        }
     }
 }

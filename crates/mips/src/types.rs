@@ -1,7 +1,7 @@
 use crate::error::Error;
 
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Device {
     D0,
     D1,
@@ -44,7 +44,7 @@ impl std::str::FromStr for Device {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Register {
     R0,
     R1,
@@ -213,7 +213,7 @@ impl From<Number> for RegisterOrNumber {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DeviceVariable {
     Activate,
     AirRelease,

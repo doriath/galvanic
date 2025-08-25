@@ -11,6 +11,7 @@ pub mod codegen;
 pub mod error;
 pub mod expr;
 pub mod ir;
+pub mod simulator;
 pub mod stack;
 pub mod statement;
 pub mod util;
