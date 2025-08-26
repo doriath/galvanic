@@ -62,8 +62,7 @@ mod tests {
         let parsed = parser
             .parse(
                 r"
-                def d0 as GasSensor;
-                store(GasSensor, Setting, 1);
+                store(d0, Setting, 1);
                 ",
             )
             .unwrap();
