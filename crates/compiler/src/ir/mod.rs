@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use ayysee_parser::ast::BinaryOpcode;
 
+mod optimize;
 pub mod types;
-pub use types::*;
+use types::*;
 
 #[derive(Default)]
 struct State {
@@ -44,20 +45,29 @@ impl State {
         // TODO: handle unwrap correctly
         *self.defs.get(name).unwrap().get(&block).unwrap()
     }
+
+    fn init(&mut self, block: BlockId) {
+        self.assign_external(block, "d0");
+        self.assign_external(block, "d1");
+        self.assign_external(block, "d2");
+        self.assign_external(block, "d3");
+        self.assign_external(block, "d4");
+        self.assign_external(block, "d5");
+        self.assign_external(block, "Setting");
+    }
 }
 
-// TODO: rename to IR
 pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<String> {
-    let ir = generate_ir(program)?;
-    println!("{:?}", ir);
+    let mut ir = generate_ir(program)?;
+    optimize::optimize(&mut ir);
+    tracing::info!("IR Program:\n{:?}", ir);
     Ok("s d0 Setting 1".to_owned())
 }
 
 pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Program> {
     let mut state = State::default();
     let block = state.new_block();
-    state.assign_external(block, "d0");
-    state.assign_external(block, "Setting");
+    state.init(block);
 
     for stmt in &program.statements {
         println!("{:?}", stmt);

@@ -77,7 +77,7 @@ impl std::fmt::Debug for Program {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct VarId(pub usize);
 
 #[derive(Debug, Clone)]
