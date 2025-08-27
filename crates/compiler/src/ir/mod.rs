@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use ayysee_parser::ast::BinaryOpcode;
-
 mod optimize;
 pub mod types;
 use types::*;
@@ -80,7 +78,7 @@ pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Progr
                     .iter()
                     .map(|a| process_expr(&mut state, block, a))
                     .collect();
-                let id = state.add_variable(
+                state.add_variable(
                     block,
                     VarValue::Call {
                         name: identifier.to_string(),
@@ -125,12 +123,10 @@ fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Ex
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::generate_program_ng;
     use crate::simulator::Simulator;
     use ayysee_parser::grammar::ProgramParser;
     use stationeers_mips::types::{Device, DeviceVariable};
-    use std::str::FromStr;
     use test_log::test;
 
     fn parse_mips(
