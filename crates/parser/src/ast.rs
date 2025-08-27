@@ -140,6 +140,16 @@ pub enum Value {
     Boolean(bool),
 }
 
+impl Into<f64> for &Value {
+    fn into(self) -> f64 {
+        match self {
+            Value::Integer(x) => *x as f64,
+            Value::Float(x) => *x,
+            Value::Boolean(x) => (*x as i32) as f64,
+        }
+    }
+}
+
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct Identifier(String);
 

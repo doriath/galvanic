@@ -9,3 +9,7 @@ stationeers-mips = { path = "../mips" }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+test-log = { workspace = true }
+
