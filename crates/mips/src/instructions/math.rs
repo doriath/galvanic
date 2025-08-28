@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::types::{Register, RegisterOrNumber};
 
 /// Instructions for mathematical operations.
@@ -213,6 +214,38 @@ impl std::fmt::Display for Arithmetic {
             Arithmetic::Subtract { register, a, b } => write!(f, "sub {} {} {}", register, a, b),
             Arithmetic::Tangent { register, a } => write!(f, "tan {} {}", register, a),
             Arithmetic::Truncate { register, a } => write!(f, "trunc {} {}", register, a),
+        }
+    }
+}
+
+impl std::str::FromStr for Arithmetic {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split_whitespace();
+
+        let command = parts
+            .next()
+            .ok_or_else(|| Error::ParseError(s.to_string()))?;
+
+        match command {
+            "add" => {
+                let register = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                let a = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+                let b = parts
+                    .next()
+                    .ok_or_else(|| Error::ParseError(s.to_string()))?
+                    .parse()?;
+
+                Ok(Arithmetic::Add { register, a, b })
+            }
+            _ => todo!(),
         }
     }
 }

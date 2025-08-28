@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use stationeers_mips::instructions::{DeviceIo, Instruction, Misc};
+use stationeers_mips::instructions::{Arithmetic, DeviceIo, Instruction, Misc};
 use stationeers_mips::types::{Device, DeviceVariable, Number, Register, RegisterOrNumber};
 
 pub struct Simulator {
@@ -58,6 +58,7 @@ impl State {
             };
             println!("Executing `{}`", ins);
             match ins {
+                Instruction::Arithmetic(x) => self.execute_arithmetic(&x),
                 Instruction::DeviceIo(x) => self.execute_deviceio(&x),
                 Instruction::Misc(Misc::Yield) => return TickResult::Yield,
                 Instruction::Misc(x) => self.execute_misc(&x),
@@ -68,6 +69,23 @@ impl State {
         return TickResult::LimitHit;
     }
 
+    fn execute_arithmetic(&mut self, ins: &Arithmetic) {
+        match &ins {
+            Arithmetic::Add { register, a, b } => {
+                self.registers
+                    .insert(*register, self.read(a) + self.read(b));
+            }
+            _ => {}
+        }
+    }
+
+    fn read(&self, r: &RegisterOrNumber) -> f64 {
+        match r {
+            RegisterOrNumber::Register(r) => self.registers.get(r).copied().unwrap_or_default(),
+            RegisterOrNumber::Number(x) => x.into(),
+        }
+    }
+
     fn execute_deviceio(&mut self, ins: &DeviceIo) {
         match &ins {
             DeviceIo::StoreDeviceVariable {
@@ -75,14 +93,7 @@ impl State {
                 variable,
                 register,
             } => {
-                let value: f64 = match register {
-                    RegisterOrNumber::Register(r) => {
-                        self.registers.get(r).copied().unwrap_or_default()
-                    }
-                    RegisterOrNumber::Number(x) => x.into(),
-                };
-
-                println!("Value = {}", value);
+                let value: f64 = self.read(register);
                 self.devices
                     .entry(device.clone())
                     .or_default()

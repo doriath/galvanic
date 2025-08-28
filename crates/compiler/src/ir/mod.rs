@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+mod codegen;
 mod optimize;
 pub mod types;
 use types::*;
+
+use crate::ir::codegen::generate_mips_from_ir;
 
 #[derive(Default)]
 struct State {
@@ -59,7 +62,7 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
     let mut ir = generate_ir(program)?;
     optimize::optimize(&mut ir);
     tracing::info!("IR Program:\n{:?}", ir);
-    Ok("s d0 Setting 1".to_owned())
+    Ok(generate_mips_from_ir(&ir)?.to_string())
 }
 
 pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Program> {
@@ -175,6 +178,6 @@ mod tests {
         let instructions = parse_mips(&mips).unwrap();
         let mut simulator = Simulator::new(instructions);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
-        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 3.0);
     }
 }

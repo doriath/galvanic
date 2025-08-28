@@ -16,6 +16,20 @@ pub use variable::VariableSelection;
 
 use crate::error::Error;
 
+#[derive(Default)]
+pub struct Program {
+    pub instructions: Vec<Instruction>,
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for i in &self.instructions {
+            writeln!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
+
 /// An enum representing all possible Stationeers MIPS instructions.
 /// Each variant is a different instruction and corresponds to a single line of MIPS code.
 pub enum Instruction {
@@ -94,6 +108,8 @@ impl std::str::FromStr for Instruction {
             Ok(Instruction::DeviceIo(device_io))
         } else if let Ok(misc) = s.parse::<Misc>() {
             Ok(Instruction::Misc(misc))
+        } else if let Ok(a) = s.parse::<Arithmetic>() {
+            Ok(Instruction::Arithmetic(a))
         } else {
             Err(Error::ParseError(s.to_string()))
         }
