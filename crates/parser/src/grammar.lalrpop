@@ -108,6 +108,7 @@ BoolLiteral: bool = {
 Term: Box<Expr> = {
     ConstantExpr => Box::new(Expr::Constant(<>)),
     Identifier => Box::new(Expr::Identifier(<>)),
+    <Identifier> "(" <Args> ")" => Box::new(Expr::FunctionCall(<>)),
     "(" <Expr> ")",
 };
 

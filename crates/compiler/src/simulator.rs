@@ -41,6 +41,13 @@ impl Simulator {
         }
         0.0
     }
+    pub fn write(&mut self, d: Device, logic_type: DeviceVariable, v: f64) {
+        self.state
+            .devices
+            .entry(d)
+            .or_default()
+            .insert(logic_type, v);
+    }
 }
 
 impl State {
@@ -98,6 +105,20 @@ impl State {
                     .entry(device.clone())
                     .or_default()
                     .insert(variable.clone(), value);
+            }
+            DeviceIo::LoadDeviceVariable {
+                register,
+                device,
+                variable,
+            } => {
+                let value = self
+                    .devices
+                    .entry(device.clone())
+                    .or_default()
+                    .get(&variable)
+                    .copied()
+                    .unwrap_or_default();
+                self.registers.insert(register.clone(), value);
             }
             _ => todo!(),
         }

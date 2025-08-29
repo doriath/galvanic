@@ -20,6 +20,7 @@ pub(crate) fn generate_expr(
     pass: Pass,
 ) -> Result<()> {
     match expr {
+        _ => todo!(),
         Expr::Identifier(identifier) => {
             codegen.add_comment_line(format!("expr identifier {identifier:?}"));
 

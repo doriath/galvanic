@@ -121,6 +121,16 @@ fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Ex
             VarOrConst::Var(state.add_variable(block, VarValue::BinaryOp { lhs, op: *op, rhs }))
         }
         ayysee_parser::ast::Expr::UnaryOp(_, _) => todo!(),
+        ayysee_parser::ast::Expr::FunctionCall(ident, args) => {
+            let args = args.iter().map(|a| process_expr(state, block, a)).collect();
+            VarOrConst::Var(state.add_variable(
+                block,
+                VarValue::Call {
+                    name: ident.to_string(),
+                    args,
+                },
+            ))
+        }
     }
 }
 
@@ -179,5 +189,26 @@ mod tests {
         let mut simulator = Simulator::new(instructions);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 3.0);
+    }
+
+    #[test]
+    fn test_simple_load() {
+        let parser = ProgramParser::new();
+        let parsed = parser
+            .parse(
+                r"
+                let x = load(d0, Setting);
+                let y = x + 2;
+                store(d0, Setting, y);
+                ",
+            )
+            .unwrap();
+        let mips = generate_program_ng(parsed).unwrap();
+        println!("{}", mips);
+        let instructions = parse_mips(&mips).unwrap();
+        let mut simulator = Simulator::new(instructions);
+        simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);
     }
 }

@@ -110,6 +110,7 @@ pub enum Expr {
     Identifier(Identifier),
     BinaryOp(Box<Expr>, BinaryOpcode, Box<Expr>),
     UnaryOp(UnaryOpcode, Box<Expr>),
+    FunctionCall(Identifier, Vec<Box<Expr>>),
 }
 
 #[derive(Debug, Clone, Copy)]

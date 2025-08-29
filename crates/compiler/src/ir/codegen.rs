@@ -60,6 +60,16 @@ pub fn generate_mips_from_ir(
                                 }
                                 .into(),
                             );
+                        } else if name == "load" {
+                            registers.insert(*id, Register::R0);
+                            result.instructions.push(
+                                mips::instructions::DeviceIo::LoadDeviceVariable {
+                                    register: mips::types::Register::R0,
+                                    device: mips::types::Device::D0,
+                                    variable: mips::types::DeviceVariable::Setting,
+                                }
+                                .into(),
+                            )
                         } else {
                             todo!()
                         }
