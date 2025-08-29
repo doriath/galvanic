@@ -8,3 +8,5 @@
 pub mod error;
 pub mod instructions;
 pub mod types;
+
+pub use instructions::Program;

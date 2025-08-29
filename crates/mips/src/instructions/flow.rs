@@ -1,6 +1,7 @@
 use crate::types::RegisterOrNumber;
 
 /// Instructions for flow control, branching, and jumping
+#[derive(Clone)]
 pub enum FlowControl {
     /// Branch to line d if abs(a - b) <= max(c * max(abs(a), abs(b)), float.epsilon * 8)
     ///

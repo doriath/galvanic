@@ -1,6 +1,7 @@
 use crate::types::{Register, RegisterOrNumber};
 
 /// Boolean logic instructions.
+#[derive(Clone)]
 pub enum Logic {
     /// Register = 1 if a != 0 and b != 0 else 0
     ///

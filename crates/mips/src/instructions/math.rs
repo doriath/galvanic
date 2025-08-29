@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::types::{Register, RegisterOrNumber};
 
 /// Instructions for mathematical operations.
+#[derive(Clone)]
 pub enum Arithmetic {
     /// Register = abs(a)
     ///

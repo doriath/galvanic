@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use stationeers_mips::instructions::{Arithmetic, DeviceIo, Instruction, Misc};
 use stationeers_mips::types::{Device, DeviceVariable, Number, Register, RegisterOrNumber};
+use stationeers_mips::Program;
 
 pub struct Simulator {
     instructions: Vec<Instruction>,
@@ -21,9 +22,9 @@ pub enum TickResult {
 }
 
 impl Simulator {
-    pub fn new(instructions: Vec<Instruction>) -> Self {
+    pub fn new(program: Program) -> Self {
         Simulator {
-            instructions,
+            instructions: program.instructions,
             state: State {
                 registers: HashMap::default(),
                 devices: HashMap::default(),

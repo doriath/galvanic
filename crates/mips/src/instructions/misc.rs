@@ -3,6 +3,7 @@ use crate::types::{Number, Register, RegisterOrNumber};
 
 /// An enum representing miscellaneous Stationeers MIPS instructions.
 /// These instructions are not part of any other category.
+#[derive(Clone)]
 pub enum Misc {
     /// Labels register or device reference with name. device references affect what shows on the
     /// screws on the IC base

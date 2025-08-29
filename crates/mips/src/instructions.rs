@@ -16,7 +16,7 @@ pub use variable::VariableSelection;
 
 use crate::error::Error;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Program {
     pub instructions: Vec<Instruction>,
 }
@@ -30,8 +30,22 @@ impl std::fmt::Display for Program {
     }
 }
 
+impl std::str::FromStr for Program {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut program = Program::default();
+        for line in s.lines() {
+            let line = line.trim();
+            program.instructions.push(line.parse()?)
+        }
+        Ok(program)
+    }
+}
+
 /// An enum representing all possible Stationeers MIPS instructions.
 /// Each variant is a different instruction and corresponds to a single line of MIPS code.
+#[derive(Clone)]
 pub enum Instruction {
     DeviceIo(DeviceIo),
     FlowControl(FlowControl),

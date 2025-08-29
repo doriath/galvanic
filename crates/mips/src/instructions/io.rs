@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Instructions for interacting with devices.
+#[derive(Clone)]
 pub enum DeviceIo {
     /// branch to line a if device d isn't set
     ///

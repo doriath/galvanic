@@ -67,5 +67,5 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> Result<String> 
 
 /// Generates the MIPS assemby based on ayysee language.
 pub fn generate_program_ng(program: ayysee_parser::ast::Program) -> Result<String> {
-    Ok(crate::ir::generate_program(program).unwrap())
+    Ok(crate::ir::generate_program(program).unwrap().to_string())
 }

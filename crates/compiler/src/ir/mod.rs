@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-
 mod codegen;
 mod optimize;
 pub mod types;
-use types::*;
 
 use crate::ir::codegen::generate_mips_from_ir;
+use stationeers_mips as mips;
+use std::collections::HashMap;
+use types::*;
 
 #[derive(Default)]
 struct State {
@@ -58,11 +58,11 @@ impl State {
     }
 }
 
-pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<String> {
+pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<mips::Program> {
     let mut ir = generate_ir(program)?;
     optimize::optimize(&mut ir);
     tracing::info!("IR Program:\n{:?}", ir);
-    Ok(generate_mips_from_ir(&ir)?.to_string())
+    Ok(generate_mips_from_ir(&ir)?)
 }
 
 pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Program> {
@@ -136,8 +136,8 @@ fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Ex
 
 #[cfg(test)]
 mod tests {
-    use crate::generate_program_ng;
-    use crate::simulator::Simulator;
+    use super::*;
+    use crate::simulator::{Simulator, TickResult};
     use ayysee_parser::grammar::ProgramParser;
     use stationeers_mips::types::{Device, DeviceVariable};
     use test_log::test;
@@ -153,60 +153,50 @@ mod tests {
         Ok(ret)
     }
 
+    fn compile(ayysee: &str) -> mips::Program {
+        let parser = ProgramParser::new();
+        let ayysee_program = parser.parse(ayysee).unwrap();
+        let mips = generate_program(ayysee_program).unwrap();
+        println!("{}", mips);
+        mips
+    }
+
     #[test]
     fn test_simple_store() {
-        let parser = ProgramParser::new();
-        let parsed = parser
-            .parse(
-                r"
+        let mips = compile(
+            r"
                 store(d0, Setting, 1);
-                ",
-            )
-            .unwrap();
-        let mips = generate_program_ng(parsed).unwrap();
-        println!("{}", mips);
-        let instructions = parse_mips(&mips).unwrap();
-        let mut simulator = Simulator::new(instructions);
-        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            ",
+        );
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), TickResult::End);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
     }
 
     #[test]
     fn test_simple_variable() {
-        let parser = ProgramParser::new();
-        let parsed = parser
-            .parse(
-                r"
+        let mips = compile(
+            r"
                 let x = 1;
                 let y = x + 2;
                 store(d0, Setting, y);
-                ",
-            )
-            .unwrap();
-        let mips = generate_program_ng(parsed).unwrap();
-        println!("{}", mips);
-        let instructions = parse_mips(&mips).unwrap();
-        let mut simulator = Simulator::new(instructions);
-        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            ",
+        );
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), TickResult::End);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 3.0);
     }
 
     #[test]
     fn test_simple_load() {
-        let parser = ProgramParser::new();
-        let parsed = parser
-            .parse(
-                r"
+        let mips = compile(
+            r"
                 let x = load(d0, Setting);
                 let y = x + 2;
                 store(d0, Setting, y);
                 ",
-            )
-            .unwrap();
-        let mips = generate_program_ng(parsed).unwrap();
-        println!("{}", mips);
-        let instructions = parse_mips(&mips).unwrap();
-        let mut simulator = Simulator::new(instructions);
+        );
+        let mut simulator = Simulator::new(mips);
         simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);

@@ -1,6 +1,7 @@
 use crate::types::{Register, RegisterOrNumber};
 
 /// Instructions for operating on the stack
+#[derive(Clone)]
 pub enum Stack {
     /// Register = top of stack
     ///

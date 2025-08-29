@@ -1,6 +1,7 @@
 use crate::types::{Register, RegisterOrNumber};
 
 /// Instructions for variable selection
+#[derive(Clone)]
 pub enum VariableSelection {
     /// Register = 1 if abs(a-b) <= max(c*max(abs(a), abs(b)), float.epsilon*8) else 0
     ///
