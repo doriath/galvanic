@@ -7,6 +7,12 @@ pub enum VarOrConst {
     Const(f64),
 }
 
+impl From<VarId> for VarOrConst {
+    fn from(value: VarId) -> Self {
+        VarOrConst::Var(value)
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct BlockId(pub usize);
 
@@ -29,7 +35,7 @@ pub enum Instruction {
     },
     Branch {
         // Variable that stores the 0 (false) or != 0 (true) that will be used to decide where to jump to.
-        cond: VarId,
+        cond: VarOrConst,
         // Block where we jump to, when cond is true
         true_block: BlockId,
         // Block where we jump to, when cond is false
@@ -83,6 +89,7 @@ pub struct VarId(pub usize);
 #[derive(Debug, Clone)]
 pub enum VarValue {
     Single(VarOrConst),
+    Phi(Vec<VarId>),
     BinaryOp {
         lhs: VarOrConst,
         op: BinaryOpcode,
@@ -92,4 +99,16 @@ pub enum VarValue {
         name: String,
         args: Vec<VarOrConst>,
     },
+}
+
+impl From<VarOrConst> for VarValue {
+    fn from(value: VarOrConst) -> Self {
+        VarValue::Single(value)
+    }
+}
+
+impl From<VarId> for VarValue {
+    fn from(id: VarId) -> Self {
+        VarValue::Single(id.into())
+    }
 }

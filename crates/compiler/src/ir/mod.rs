@@ -3,6 +3,7 @@ mod optimize;
 pub mod types;
 
 use crate::ir::codegen::generate_mips_from_ir;
+use ayysee_parser::ast;
 use stationeers_mips as mips;
 use std::collections::HashMap;
 use types::*;
@@ -18,6 +19,11 @@ impl State {
     fn new_block(&mut self) -> BlockId {
         self.program.blocks.push(Block::default());
         BlockId(self.program.blocks.len() - 1)
+    }
+
+    fn connect_blocks(&mut self, from: BlockId, to: BlockId) {
+        self.program.blocks[from.0].next.push(to);
+        self.program.blocks[to.0].prev.push(from);
     }
 
     fn assign(&mut self, block: BlockId, name: &str, v: VarId) {
@@ -42,9 +48,41 @@ impl State {
         id
     }
 
-    fn read_variable(&self, block: BlockId, name: &str) -> VarId {
-        // TODO: handle unwrap correctly
-        *self.defs.get(name).unwrap().get(&block).unwrap()
+    fn read_variable(&mut self, block: BlockId, name: &str) -> VarId {
+        if let Some(x) = self.defs.get(name).unwrap().get(&block) {
+            return *x;
+        }
+        // Variable not available in this block yet
+        // First, add the new variable (to ensure we don't break when cycle occurs)
+        let id = VarId(self.vars.len());
+        // This will be changed later to real value
+        self.vars.push(VarValue::Phi(vec![]));
+        self.assign(block, name, id);
+        let mut all = vec![];
+
+        let prevs = self.program.blocks[block.0].prev.clone();
+        for prev in &prevs {
+            all.push(self.read_variable(*prev, name));
+        }
+        tracing::debug!(
+            "reading block:{:?} name:{}: prevs{:?} all:{:?}",
+            block,
+            name,
+            prevs,
+            all
+        );
+
+        let value = if all.len() == 1 {
+            all[0].clone().into()
+        } else {
+            VarValue::Phi(all)
+        };
+        self.vars[id.0] = value.clone();
+        self.program.blocks[block.0]
+            .instructions
+            .push(Instruction::Assignment { id, value });
+
+        id
     }
 
     fn init(&mut self, block: BlockId) {
@@ -60,6 +98,7 @@ impl State {
 
 pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<mips::Program> {
     let mut ir = generate_ir(program)?;
+    tracing::info!("IR Program before optimize:\n{:?}", ir);
     optimize::optimize(&mut ir);
     tracing::info!("IR Program:\n{:?}", ir);
     Ok(generate_mips_from_ir(&ir)?)
@@ -70,16 +109,26 @@ pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Progr
     let block = state.new_block();
     state.init(block);
 
-    for stmt in &program.statements {
-        println!("{:?}", stmt);
+    process_stmts(&mut state, block, &program.statements)?;
+
+    Ok(state.program)
+}
+
+fn process_stmts(
+    state: &mut State,
+    mut block: BlockId,
+    statements: &[ast::Statement],
+) -> anyhow::Result<()> {
+    for stmt in statements {
+        tracing::debug!("{:?}", stmt);
         match stmt {
-            ayysee_parser::ast::Statement::FunctionCall {
+            ast::Statement::FunctionCall {
                 identifier,
                 arguments,
             } => {
                 let args: Vec<VarOrConst> = arguments
                     .iter()
-                    .map(|a| process_expr(&mut state, block, a))
+                    .map(|a| process_expr(state, block, a))
                     .collect();
                 state.add_variable(
                     block,
@@ -89,11 +138,11 @@ pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Progr
                     },
                 );
             }
-            ayysee_parser::ast::Statement::Definition {
+            ast::Statement::Definition {
                 identifier,
                 expression,
             } => {
-                let v = process_expr(&mut state, block, &expression);
+                let v = process_expr(state, block, &expression);
                 let id = match v {
                     VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
                     VarOrConst::Var(id) => id,
@@ -101,12 +150,39 @@ pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Progr
                 };
                 state.assign(block, identifier.as_ref(), id);
             }
+            ast::Statement::IfStatement(if_stmt) => match if_stmt {
+                ast::IfStatement::If { condition, body } => todo!(),
+                ast::IfStatement::IfElse {
+                    condition,
+                    body,
+                    else_body,
+                } => {
+                    let cond_id = process_expr(state, block, condition);
+                    let block_body = state.new_block();
+                    state.connect_blocks(block, block_body);
+                    process_stmts(state, block_body, body.statements())?;
+                    let block_else = state.new_block();
+                    state.connect_blocks(block, block_else);
+                    process_stmts(state, block_else, body.statements())?;
+                    state.program.blocks[block.0]
+                        .instructions
+                        .push(Instruction::Branch {
+                            cond: cond_id,
+                            true_block: block_body,
+                            false_block: block_else,
+                        });
+
+                    block = state.new_block();
+                    state.connect_blocks(block_body, block);
+                    state.connect_blocks(block_else, block);
+                }
+            },
             _ => {
                 anyhow::bail!("unimplemented statement");
             }
         }
     }
-    Ok(state.program)
+    Ok(())
 }
 
 fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Expr) -> VarOrConst {
@@ -200,5 +276,30 @@ mod tests {
         simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);
+    }
+
+    #[test]
+    fn test_simple_conditional() {
+        let mips = compile(
+            r"
+                if load(d0, Setting) > 5 {
+                    store(d0, Setting, 1);
+                } else {
+                    store(d0, Setting, 2);
+                }
+            ",
+        );
+        {
+            let mut simulator = Simulator::new(mips.clone());
+            simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 2.0);
+        }
+        {
+            let mut simulator = Simulator::new(mips);
+            simulator.write(Device::D0, DeviceVariable::Setting, 8.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+        }
     }
 }

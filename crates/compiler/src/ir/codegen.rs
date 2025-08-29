@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use ayysee_parser::ast;
 use mips::types::{Number, Register, RegisterOrNumber};
 use stationeers_mips as mips;
 
-use super::types::{VarId, VarOrConst};
+use super::types::{BlockId, VarId, VarOrConst};
 
 pub fn generate_mips_from_ir(
     program: &crate::ir::Program,
@@ -32,7 +33,7 @@ pub fn generate_mips_from_ir(
                     super::types::VarValue::Single(_) => todo!(),
                     // TODO
                     super::types::VarValue::BinaryOp { lhs, op, rhs } => match op {
-                        ayysee_parser::ast::BinaryOpcode::Add => {
+                        ast::BinaryOpcode::Add => {
                             let a = var_to_register(lhs, &registers);
                             let b = var_to_register(rhs, &registers);
                             result.instructions.push(
@@ -45,7 +46,20 @@ pub fn generate_mips_from_ir(
                             );
                             registers.insert(*id, Register::R0);
                         }
-                        _ => (),
+                        ast::BinaryOpcode::Greater => {
+                            let a = var_to_register(lhs, &registers);
+                            let b = var_to_register(rhs, &registers);
+                            result.instructions.push(
+                                mips::instructions::VariableSelection::SelectGreaterThan {
+                                    register: Register::R0,
+                                    a,
+                                    b,
+                                }
+                                .into(),
+                            );
+                            registers.insert(*id, Register::R0);
+                        }
+                        _ => todo!(),
                     },
                     super::types::VarValue::Call { name, args } => {
                         if name == "store" {
@@ -74,12 +88,18 @@ pub fn generate_mips_from_ir(
                             todo!()
                         }
                     }
+                    super::types::VarValue::Phi(_) => todo!(),
                 },
                 super::types::Instruction::Branch {
                     cond,
                     true_block,
                     false_block,
-                } => todo!(),
+                } => {
+                    // TODO: not implemented yet
+                    result
+                        .instructions
+                        .push(mips::instructions::FlowControl::Jump { a: 0 }.into());
+                }
             }
         }
     }

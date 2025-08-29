@@ -16,18 +16,30 @@ fn remove_unused_variables(program: &mut Program) -> bool {
     let mut used = HashSet::<VarId>::default();
     for (block_id, block) in program.blocks.iter().enumerate() {
         for (ins_id, ins) in block.instructions.iter().enumerate() {
-            if let Instruction::Assignment { id, value } = ins {
-                pos.insert(*id, (BlockId(block_id), ins_id));
-                if let VarValue::Call { name, args } = value {
-                    if name == "store" {
-                        used.insert(*id);
-                        stack.push(*id);
-                        for arg in args {
-                            if let VarOrConst::Var(id) = arg {
-                                used.insert(*id);
-                                stack.push(*id);
+            match ins {
+                Instruction::Assignment { id, value } => {
+                    pos.insert(*id, (BlockId(block_id), ins_id));
+                    if let VarValue::Call { name, args } = value {
+                        if name == "store" {
+                            used.insert(*id);
+                            stack.push(*id);
+                            for arg in args {
+                                if let VarOrConst::Var(id) = arg {
+                                    used.insert(*id);
+                                    stack.push(*id);
+                                }
                             }
                         }
+                    }
+                }
+                Instruction::Branch {
+                    cond,
+                    true_block: _,
+                    false_block: _,
+                } => {
+                    if let VarOrConst::Var(id) = cond {
+                        used.insert(*id);
+                        stack.push(*id);
                     }
                 }
             }
@@ -58,6 +70,7 @@ fn remove_unused_variables(program: &mut Program) -> bool {
                         maybe_add(a);
                     }
                 }
+                VarValue::Phi(_) => todo!(),
             }
         }
     }
@@ -75,11 +88,21 @@ fn remove_unused_variables(program: &mut Program) -> bool {
     removed_any
 }
 
-fn fully_resolve(inlinable: &mut HashMap<VarId, VarOrConst>, id: VarId) -> VarOrConst {
+fn fully_resolve(
+    inlinable: &mut HashMap<VarId, VarOrConst>,
+    resolved: &mut HashSet<VarId>,
+    id: VarId,
+) -> VarOrConst {
     let val = inlinable.get(&id).unwrap();
+
+    if resolved.contains(&id) {
+        return val.clone();
+    }
+    resolved.insert(id);
+
     if let VarOrConst::Var(next) = val {
         if inlinable.contains_key(next) {
-            let new_val = fully_resolve(inlinable, id);
+            let new_val = fully_resolve(inlinable, resolved, *next);
             inlinable.insert(id, new_val.clone());
             return new_val;
         }
@@ -88,9 +111,10 @@ fn fully_resolve(inlinable: &mut HashMap<VarId, VarOrConst>, id: VarId) -> VarOr
 }
 
 fn resolve_inlinable(inlinable: &mut HashMap<VarId, VarOrConst>) {
+    let mut resolved = HashSet::<VarId>::default();
     let keys: Vec<VarId> = inlinable.keys().into_iter().copied().collect();
     for id in keys {
-        fully_resolve(inlinable, id);
+        fully_resolve(inlinable, &mut resolved, id);
     }
 }
 
@@ -132,6 +156,7 @@ fn inline(program: &mut Program) {
                             maybe_replace(arg);
                         }
                     }
+                    VarValue::Phi(_) => todo!(),
                 },
                 // TODO:
                 Instruction::Branch {

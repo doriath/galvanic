@@ -203,6 +203,12 @@ impl Block {
             None => Self::Statements(vec![]),
         }
     }
+
+    pub fn statements(&self) -> &[Statement] {
+        match self {
+            Block::Statements(x) => x,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
