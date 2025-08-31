@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use stationeers_mips::instructions::{Arithmetic, DeviceIo, Instruction, Misc};
+use stationeers_mips::instructions::{
+    Arithmetic, DeviceIo, FlowControl, Instruction, Misc, VariableSelection,
+};
 use stationeers_mips::types::{Device, DeviceVariable, Number, Register, RegisterOrNumber};
 use stationeers_mips::Program;
 
@@ -54,13 +56,7 @@ impl Simulator {
 impl State {
     fn tick(&mut self, instructions: &[Instruction]) -> TickResult {
         for i in 0..127 {
-            let sp = self
-                .registers
-                .get(&Register::Sp)
-                .copied()
-                .unwrap_or(0.0)
-                .round() as usize;
-            let ins = match instructions.get(sp) {
+            let ins = match instructions.get(self.sp() as usize) {
                 Some(x) => x,
                 None => return TickResult::End,
             };
@@ -70,11 +66,24 @@ impl State {
                 Instruction::DeviceIo(x) => self.execute_deviceio(&x),
                 Instruction::Misc(Misc::Yield) => return TickResult::Yield,
                 Instruction::Misc(x) => self.execute_misc(&x),
-                _ => todo!(),
+                Instruction::VariableSelection(x) => self.execute_select(&x),
+                Instruction::FlowControl(x) => self.execute_flow(&x),
+                _ => todo!("{}", ins),
             }
-            self.registers.insert(Register::Sp, (sp + 1) as f64);
+            self.set_sp(self.sp() + 1);
         }
         return TickResult::LimitHit;
+    }
+
+    fn sp(&self) -> i32 {
+        self.registers
+            .get(&Register::Sp)
+            .copied()
+            .unwrap_or(0.0)
+            .round() as i32
+    }
+    fn set_sp(&mut self, sp: i32) {
+        self.registers.insert(Register::Sp, sp as f64);
     }
 
     fn execute_arithmetic(&mut self, ins: &Arithmetic) {
@@ -133,6 +142,97 @@ impl State {
                 _ => todo!(),
             },
             _ => todo!(),
+        }
+    }
+    fn execute_select(&mut self, ins: &VariableSelection) {
+        match ins {
+            VariableSelection::SelectApproximatelyEqual { register, a, b, c } => todo!(),
+            VariableSelection::SelectApproximatelyZero { register, a, b } => todo!(),
+            VariableSelection::SelectDeviceNotSet { register, d } => todo!(),
+            VariableSelection::SelectDeviceSet { register, d } => todo!(),
+            VariableSelection::Select { register, a, b, c } => todo!(),
+            VariableSelection::SelectEqual { register, a, b } => todo!(),
+            VariableSelection::SelectEqualZero { register, a } => todo!(),
+            VariableSelection::SelectGreaterOrEqual { register, a, b } => todo!(),
+            VariableSelection::SelectGreaterOrEqualZero { register, a } => todo!(),
+            VariableSelection::SelectGreaterThan { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) > self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectGreaterThanZero { register, a } => todo!(),
+            VariableSelection::SelectLessOrEqual { register, a, b } => todo!(),
+            VariableSelection::SelectLessOrEqualZero { register, a } => todo!(),
+            VariableSelection::SelectLessThan { register, a, b } => todo!(),
+            VariableSelection::SelectLessThanZero { register, a } => todo!(),
+            VariableSelection::SelectNotApproximatelyEqual { register, a, b, c } => todo!(),
+            VariableSelection::SelectNotApproximatelyZero { register, a, b } => todo!(),
+            VariableSelection::SelectNotEqual { register, a, b } => todo!(),
+            VariableSelection::SelectNotEqualZero { register, a } => todo!(),
+        }
+    }
+    fn execute_flow(&mut self, ins: &FlowControl) {
+        match ins {
+            FlowControl::BranchAbsoluteLessThan { a, b, c, d } => todo!(),
+            FlowControl::BranchAbsoluteLessThanAndLink { a, b, c, d } => todo!(),
+            FlowControl::BranchAbsoluteZero { a, b, c } => todo!(),
+            FlowControl::BranchAbsoluteZeroAndLink { a, b, c } => todo!(),
+            FlowControl::BranchEqual { a, b, c } => todo!(),
+            FlowControl::BranchEqualAndLink { a, b, c } => todo!(),
+            FlowControl::BranchEqualZero { a, b } => todo!(),
+            FlowControl::BranchEqualZeroAndLink { a, b } => todo!(),
+            FlowControl::BranchGreaterOrEqual { a, b, c } => todo!(),
+            FlowControl::BranchGreaterOrEqualAndLink { a, b, c } => todo!(),
+            FlowControl::BranchGreaterOrEqualZero { a, b } => todo!(),
+            FlowControl::BranchGreaterOrEqualZeroAndLink { a, b } => todo!(),
+            FlowControl::BranchGreaterThan { a, b, c } => todo!(),
+            FlowControl::BranchGreaterThanAndLink { a, b, c } => todo!(),
+            FlowControl::BranchGreaterThanZero { a, b } => todo!(),
+            FlowControl::BranchGreaterThanZeroAndLink { a, b } => todo!(),
+            FlowControl::BranchLessOrEqual { a, b, c } => todo!(),
+            FlowControl::BranchLessOrEqualAndLink { a, b, c } => todo!(),
+            FlowControl::BranchLessOrEqualZero { a, b } => todo!(),
+            FlowControl::BranchLessOrEqualZeroAndLink { a, b } => todo!(),
+            FlowControl::BranchLessThan { a, b, c } => todo!(),
+            FlowControl::BranchLessThanAndLink { a, b, c } => todo!(),
+            FlowControl::BranchLessThanZero { a, b } => todo!(),
+            FlowControl::BranchLessThanZeroAndLink { a, b } => todo!(),
+            FlowControl::BranchNotApproximatelyEqual { a, b, c, d } => todo!(),
+            FlowControl::BranchNotApproximatelyEqualAndLink { a, b, c, d } => todo!(),
+            FlowControl::BranchNotApproximatelyZero { a, b, c } => todo!(),
+            FlowControl::BranchNotApproximatelyZeroAndLink { a, b, c } => todo!(),
+            FlowControl::BranchNotEqual { a, b, c } => todo!(),
+            FlowControl::BranchNotEqualAndLink { a, b, c } => todo!(),
+            FlowControl::BranchNotEqualZero { a, b } => todo!(),
+            FlowControl::BranchNotEqualZeroAndLink { a, b } => todo!(),
+            FlowControl::RelativeBranchApproximatelyEqual { a, b, c, d } => todo!(),
+            FlowControl::RelativeBranchApproximatelyZero { a, b, c } => todo!(),
+            FlowControl::RelativeBranchEqual { a, b, c } => todo!(),
+            FlowControl::RelativeBranchEqualZero { a, b } => {
+                if self.read(a) == 0.0 {
+                    println!("if false");
+                    let idx = self.read(b) as i32;
+                    self.registers.insert(Register::Sp, (idx - 1) as f64);
+                } else {
+                    println!("if true");
+                }
+            }
+            FlowControl::RelativeBranchGreaterOrEqual { a, b, c } => todo!(),
+            FlowControl::RelativeBranchGreaterOrEqualZero { a, b } => todo!(),
+            FlowControl::RelativeBranchGreaterThan { a, b, c } => todo!(),
+            FlowControl::RelativeBranchGreaterThanZero { a, b } => todo!(),
+            FlowControl::RelativeBranchLessOrEqual { a, b, c } => todo!(),
+            FlowControl::RelativeBranchLessOrEqualZero { a, b } => todo!(),
+            FlowControl::RelativeBranchLessThan { a, b, c } => todo!(),
+            FlowControl::RelativeBranchLessThanZero { a, b } => todo!(),
+            FlowControl::RelativeBranchNotApproximatelyEqual { a, b, c, d } => todo!(),
+            FlowControl::RelativeBranchNotApproximatelyZero { a, b, c } => todo!(),
+            FlowControl::RelativeBranchNotEqual { a, b, c } => todo!(),
+            FlowControl::RelativeBranchNotEqualZero { a, b } => todo!(),
+            FlowControl::Jump { a } => {
+                self.registers.insert(Register::Sp, (a - 1) as f64);
+            }
+            FlowControl::JumpAndLink { a } => todo!(),
+            FlowControl::JumpRelative { a } => todo!(),
         }
     }
 }

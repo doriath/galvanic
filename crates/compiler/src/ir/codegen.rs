@@ -135,11 +135,10 @@ fn generate_block(state: &mut State, block_id: BlockId, ir_program: &crate::ir::
                         b: RegisterOrNumber::Number(Number::Int((jr_idx + 1) as i32)),
                     }
                     .into();
-                state.program.instructions[jr_idx] =
-                    mips::instructions::FlowControl::JumpRelative {
-                        a: state.program.instructions.len() as i32,
-                    }
-                    .into();
+                state.program.instructions[jr_idx] = mips::instructions::FlowControl::Jump {
+                    a: state.program.instructions.len() as i32,
+                }
+                .into();
             }
         }
     }
