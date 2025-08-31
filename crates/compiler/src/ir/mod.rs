@@ -163,7 +163,7 @@ fn process_stmts(
                     process_stmts(state, block_body, body.statements())?;
                     let block_else = state.new_block();
                     state.connect_blocks(block, block_else);
-                    process_stmts(state, block_else, body.statements())?;
+                    process_stmts(state, block_else, else_body.statements())?;
                     state.program.blocks[block.0]
                         .instructions
                         .push(Instruction::Branch {
@@ -232,6 +232,7 @@ mod tests {
     fn compile(ayysee: &str) -> mips::Program {
         let parser = ProgramParser::new();
         let ayysee_program = parser.parse(ayysee).unwrap();
+        tracing::debug!("ayysee_program:\n{:?}", ayysee_program);
         let mips = generate_program(ayysee_program).unwrap();
         println!("{}", mips);
         mips
@@ -278,6 +279,7 @@ mod tests {
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);
     }
 
+    // TODO: uncomment once conditionals are fully implemented
     #[test]
     fn test_simple_conditional() {
         let mips = compile(
