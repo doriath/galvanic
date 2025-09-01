@@ -70,7 +70,14 @@ fn remove_unused_variables(program: &mut Program) -> bool {
                         maybe_add(a);
                     }
                 }
-                VarValue::Phi(_) => todo!(),
+                VarValue::Phi(phi) => {
+                    for x in phi {
+                        if !used.contains(x) {
+                            used.insert(*x);
+                            stack.push(*x);
+                        }
+                    }
+                }
             }
         }
     }
@@ -88,85 +95,116 @@ fn remove_unused_variables(program: &mut Program) -> bool {
     removed_any
 }
 
-fn fully_resolve(
-    inlinable: &mut HashMap<VarId, VarOrConst>,
-    resolved: &mut HashSet<VarId>,
-    id: VarId,
-) -> VarOrConst {
-    let val = inlinable.get(&id).unwrap();
-
-    if resolved.contains(&id) {
-        return val.clone();
-    }
-    resolved.insert(id);
-
-    if let VarOrConst::Var(next) = val {
-        if inlinable.contains_key(next) {
-            let new_val = fully_resolve(inlinable, resolved, *next);
-            inlinable.insert(id, new_val.clone());
-            return new_val;
-        }
-    }
-    val.clone()
+#[derive(Default)]
+struct InlineState {
+    inlined: HashSet<VarId>,
 }
 
-fn resolve_inlinable(inlinable: &mut HashMap<VarId, VarOrConst>) {
-    let mut resolved = HashSet::<VarId>::default();
-    let keys: Vec<VarId> = inlinable.keys().into_iter().copied().collect();
-    for id in keys {
-        fully_resolve(inlinable, &mut resolved, id);
+impl InlineState {
+    fn find_var(&self, var_id: VarId, program: &Program) -> (BlockId, usize) {
+        // TODO: optimize this, we should record the location of everything
+        for (block_id, block) in program.blocks.iter().enumerate() {
+            for (idx, ins) in block.instructions.iter().enumerate() {
+                if let Instruction::Assignment { id, value } = ins {
+                    if var_id == *id {
+                        return (BlockId(block_id), idx);
+                    }
+                }
+            }
+        }
+        unreachable!()
+    }
+
+    fn inline_variable(self: &mut InlineState, id: VarId, program: &mut Program) {
+        if state.inlined.contains(&id) {
+            return;
+        }
+        state.inlined.insert(id);
+        let get_value = |id: VarId, state: &InlineState, program: &Program| -> VarValue {
+            let (block_id, idx) = state.find_var(id, program);
+            if let Instruction::Assignment { id: _, value } =
+                &program.blocks[block_id.0].instructions[idx]
+            {
+                return value.clone();
+            }
+            unreachable!()
+        };
+        let inline_simple =
+            |v: &VarOrConst, state: &mut InlineState, program: &mut Program| -> VarOrConst {
+                match v {
+                    VarOrConst::Var(id) => {
+                        inline_variable(*id, state, program);
+                        let next_value = get_value(*id, state, program);
+                        if let VarValue::Single(s) = next_value {
+                            return s.clone();
+                        }
+                    }
+                    _ => (),
+                }
+                v.clone()
+            };
+        let (block_id, idx) = state.find_var(id, program);
+        let value = get_value(id, state, program);
+        match value {
+            VarValue::Single(simple) => {
+                let val = inline_simple(&simple, state, program);
+                program.blocks[block_id.0].instructions[idx] = Instruction::Assignment {
+                    id,
+                    value: VarValue::Single(val),
+                };
+            }
+            VarValue::Phi(vars) => {
+                let new_vars = vars
+                    .iter()
+                    .map(|v| inline_simple(&VarOrConst::Var(*v), state, program))
+                    .collect::<HashSet<_>>();
+                if new_vars.len() == 1 {
+                    program.blocks[block_id.0].instructions[idx] = Instruction::Assignment {
+                        id,
+                        value: VarValue::Single(new_vars.into_iter().next().unwrap()),
+                    };
+                }
+            }
+            VarValue::BinaryOp { lhs, op, rhs } => {
+                let lhs = inline_simple(&lhs, state, program);
+                let rhs = inline_simple(&rhs, state, program);
+                program.blocks[block_id.0].instructions[idx] = Instruction::Assignment {
+                    id,
+                    value: VarValue::BinaryOp { lhs, op, rhs },
+                };
+            }
+            VarValue::Call { name, args } => {
+                let new_args: Vec<VarOrConst> = args
+                    .iter()
+                    .map(|a| inline_simple(a, state, program))
+                    .collect();
+                program.blocks[block_id.0].instructions[idx] = Instruction::Assignment {
+                    id,
+                    value: VarValue::Call {
+                        name,
+                        args: new_args,
+                    },
+                };
+            }
+        }
     }
 }
 
 // Inlines the variables where possible
 fn inline(program: &mut Program) {
-    let mut inlinable = HashMap::<VarId, VarOrConst>::default();
+    let mut state = InlineState::default();
+    let mut vars = HashSet::<VarId>::default();
     for b in &program.blocks {
         for ins in &b.instructions {
-            if let Instruction::Assignment { id, value } = ins {
-                if let VarValue::Single(x) = value {
-                    inlinable.insert(*id, x.clone());
-                }
+            if let Instruction::Assignment { id, value: _ } = ins {
+                vars.insert(*id);
             }
         }
     }
-    resolve_inlinable(&mut inlinable);
-    tracing::info!("inlinable: {:?}", inlinable);
-
-    let maybe_replace = |var: &mut VarOrConst| {
-        if let VarOrConst::Var(x) = var {
-            let y = inlinable.get(&x);
-            if let Option::Some(new_val) = y {
-                *var = new_val.clone();
-            }
-        }
-    };
-
-    for b in &mut program.blocks {
-        for ins in &mut b.instructions {
-            match ins {
-                Instruction::Assignment { id, value } => match value {
-                    VarValue::Single(x) => maybe_replace(x),
-                    VarValue::BinaryOp { lhs, op, rhs } => {
-                        maybe_replace(lhs);
-                        maybe_replace(rhs);
-                    }
-                    VarValue::Call { name, args } => {
-                        for arg in args {
-                            maybe_replace(arg);
-                        }
-                    }
-                    VarValue::Phi(_) => todo!(),
-                },
-                // TODO:
-                Instruction::Branch {
-                    cond,
-                    true_block,
-                    false_block,
-                } => (),
-            }
-        }
+    for id in vars {
+        inline_variable(id, &mut state, program);
     }
+    return;
 }
 
 #[cfg(test)]
@@ -181,7 +219,7 @@ mod tests {
             blocks: vec![Block {
                 instructions: vec![Instruction::Assignment {
                     id: VarId(0),
-                    value: VarValue::Single(VarOrConst::Const(1.0)),
+                    value: VarValue::Single(VarOrConst::Const((1.0).into())),
                 }],
                 next: vec![],
                 prev: vec![],

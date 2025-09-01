@@ -22,7 +22,9 @@ impl State {
                     v
                 )
             }
-            VarOrConst::Const(x) => RegisterOrNumber::Number(Number::Float(*x as f32)),
+            VarOrConst::Const(x) => {
+                RegisterOrNumber::Number(Number::Float(Into::<f64>::into(*x) as f32))
+            }
         }
     }
 }

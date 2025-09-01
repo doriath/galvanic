@@ -1,10 +1,11 @@
 use ayysee_parser::ast::BinaryOpcode;
+use ordered_float::OrderedFloat;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VarOrConst {
     Var(VarId),
     External(String),
-    Const(f64),
+    Const(OrderedFloat<f64>),
 }
 
 impl From<VarId> for VarOrConst {
@@ -28,6 +29,7 @@ pub struct Block {
     pub next: Vec<BlockId>,
 }
 
+#[derive(Clone)]
 pub enum Instruction {
     Assignment {
         id: VarId,
@@ -83,7 +85,7 @@ impl std::fmt::Debug for Program {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd)]
 pub struct VarId(pub usize);
 
 #[derive(Debug, Clone)]

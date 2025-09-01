@@ -58,11 +58,11 @@ impl State {
         // This will be changed later to real value
         self.vars.push(VarValue::Phi(vec![]));
         self.assign(block, name, id);
-        let mut all = vec![];
+        let mut all: Vec<VarId> = vec![];
 
         let prevs = self.program.blocks[block.0].prev.clone();
         for prev in &prevs {
-            all.push(self.read_variable(*prev, name));
+            all.push(self.read_variable(*prev, name).into());
         }
         tracing::debug!(
             "reading block:{:?} name:{}: prevs{:?} all:{:?}",
@@ -150,6 +150,18 @@ fn process_stmts(
                 };
                 state.assign(block, identifier.as_ref(), id);
             }
+            ast::Statement::Assignment {
+                identifier,
+                expression,
+            } => {
+                let v = process_expr(state, block, &expression);
+                let id = match v {
+                    VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
+                    VarOrConst::Var(id) => id,
+                    VarOrConst::External(_) => state.add_variable(block, VarValue::Single(v)),
+                };
+                state.assign(block, identifier.as_ref(), id);
+            }
             ast::Statement::IfStatement(if_stmt) => match if_stmt {
                 ast::IfStatement::If { condition, body } => todo!(),
                 ast::IfStatement::IfElse {
@@ -171,14 +183,13 @@ fn process_stmts(
                             true_block: block_body,
                             false_block: block_else,
                         });
-
                     block = state.new_block();
                     state.connect_blocks(block_body, block);
                     state.connect_blocks(block_else, block);
                 }
             },
             _ => {
-                anyhow::bail!("unimplemented statement");
+                anyhow::bail!("unimplemented statement {:?}", stmt);
             }
         }
     }
@@ -187,7 +198,7 @@ fn process_stmts(
 
 fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Expr) -> VarOrConst {
     match expr {
-        ayysee_parser::ast::Expr::Constant(v) => VarOrConst::Const(v.into()),
+        ayysee_parser::ast::Expr::Constant(v) => VarOrConst::Const(Into::<f64>::into(v).into()),
         ayysee_parser::ast::Expr::Identifier(ident) => {
             VarOrConst::Var(state.read_variable(block, ident.as_ref()))
         }
@@ -279,7 +290,6 @@ mod tests {
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);
     }
 
-    // TODO: uncomment once conditionals are fully implemented
     #[test]
     fn test_simple_conditional() {
         let mips = compile(
@@ -289,6 +299,33 @@ mod tests {
                 } else {
                     store(d0, Setting, 2);
                 }
+            ",
+        );
+        {
+            let mut simulator = Simulator::new(mips.clone());
+            simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 2.0);
+        }
+        {
+            let mut simulator = Simulator::new(mips);
+            simulator.write(Device::D0, DeviceVariable::Setting, 8.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+        }
+    }
+
+    #[test]
+    fn test_assignment_in_conditional() {
+        let mips = compile(
+            r"
+                let x = 0;
+                if load(d0, Setting) > 5 {
+                    x = 1;
+                } else {
+                    x = 2;
+                }
+                store(d0, Setting, x);
             ",
         );
         {
