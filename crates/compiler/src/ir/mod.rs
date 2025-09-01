@@ -6,7 +6,7 @@ use crate::ir::codegen::generate_mips_from_ir;
 use ayysee_parser::ast;
 use stationeers_mips as mips;
 use std::collections::HashMap;
-use types::*;
+pub use types::*;
 
 #[derive(Default)]
 struct State {
@@ -118,7 +118,7 @@ fn process_stmts(
     state: &mut State,
     mut block: BlockId,
     statements: &[ast::Statement],
-) -> anyhow::Result<()> {
+) -> anyhow::Result<BlockId> {
     for stmt in statements {
         tracing::debug!("{:?}", stmt);
         match stmt {
@@ -172,10 +172,10 @@ fn process_stmts(
                     let cond_id = process_expr(state, block, condition);
                     let block_body = state.new_block();
                     state.connect_blocks(block, block_body);
-                    process_stmts(state, block_body, body.statements())?;
+                    let block_body_end = process_stmts(state, block_body, body.statements())?;
                     let block_else = state.new_block();
                     state.connect_blocks(block, block_else);
-                    process_stmts(state, block_else, else_body.statements())?;
+                    let else_body_end = process_stmts(state, block_else, else_body.statements())?;
                     state.program.blocks[block.0]
                         .instructions
                         .push(Instruction::Branch {
@@ -184,16 +184,34 @@ fn process_stmts(
                             false_block: block_else,
                         });
                     block = state.new_block();
-                    state.connect_blocks(block_body, block);
-                    state.connect_blocks(block_else, block);
+                    state.connect_blocks(block_body_end, block);
+                    state.connect_blocks(else_body_end, block);
                 }
             },
+            ast::Statement::Loop { body } => {
+                // Prepare the next block, so that break statements can move to it
+                let block_next = state.new_block();
+                let block_body = state.new_block();
+
+                state.connect_blocks(block, block_body);
+
+                let body_end = process_stmts(state, block_body, body.statements())?;
+
+                state.connect_blocks(body_end, block);
+
+                block = block_next;
+            }
+            ast::Statement::Yield {} => {
+                state.program.blocks[block.0]
+                    .instructions
+                    .push(Instruction::Yield);
+            }
             _ => {
                 anyhow::bail!("unimplemented statement {:?}", stmt);
             }
         }
     }
-    Ok(())
+    Ok(block)
 }
 
 fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Expr) -> VarOrConst {
@@ -340,5 +358,24 @@ mod tests {
             assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
             assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
         }
+    }
+
+    #[test]
+    fn test_loop() {
+        let mips = compile(
+            r"
+                let x = 0;
+                loop {
+                    x = x + 1;
+                    store(d0, Setting, x);
+                    yield;
+                }
+            ",
+        );
+        let mut simulator = Simulator::new(mips.clone());
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 2.0);
     }
 }

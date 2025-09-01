@@ -43,6 +43,7 @@ pub enum Instruction {
         // Block where we jump to, when cond is false
         false_block: BlockId,
     },
+    Yield,
 }
 
 impl std::fmt::Debug for Instruction {
@@ -62,6 +63,7 @@ impl std::fmt::Debug for Instruction {
                     cond, true_block, false_block
                 )
             }
+            Instruction::Yield => write!(f, "yield"),
         }
     }
 }
@@ -80,6 +82,7 @@ impl std::fmt::Debug for Program {
         for (i, block) in self.blocks.iter().enumerate() {
             writeln!(f, "Block {i}")?;
             write!(f, "{:?}", block)?;
+            writeln!(f, "Next: {:?}", block.next)?;
         }
         Ok(())
     }

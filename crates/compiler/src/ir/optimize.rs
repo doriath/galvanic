@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ir::types::{Block, Instruction, Program, VarId, VarOrConst, VarValue};
+use crate::ir::types::{Instruction, Program, VarId, VarOrConst, VarValue};
 
 use super::types::BlockId;
 
@@ -42,6 +42,7 @@ fn remove_unused_variables(program: &mut Program) -> bool {
                         stack.push(*id);
                     }
                 }
+                Instruction::Yield => (),
             }
         }
     }
@@ -136,7 +137,7 @@ impl<'a> InlineState<'a> {
         // TODO: optimize this, we should record the location of everything
         for (block_id, block) in self.program.blocks.iter().enumerate() {
             for (idx, ins) in block.instructions.iter().enumerate() {
-                if let Instruction::Assignment { id, value } = ins {
+                if let Instruction::Assignment { id, value: _ } = ins {
                     if var_id == *id {
                         return (BlockId(block_id), idx);
                     }
@@ -199,6 +200,7 @@ fn inline(program: &mut Program) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::types::Block;
     use ayysee_parser::grammar::ProgramParser;
     use test_log::test;
 

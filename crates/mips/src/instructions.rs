@@ -56,6 +56,12 @@ pub enum Instruction {
     Misc(Misc),
 }
 
+impl Instruction {
+    pub fn new_yield() -> Self {
+        Instruction::Misc(misc::Misc::Yield)
+    }
+}
+
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
