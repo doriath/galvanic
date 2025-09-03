@@ -144,7 +144,7 @@ impl<'a> InlineState<'a> {
                 }
             }
         }
-        unreachable!()
+        unreachable!("could not find {:?}", var_id)
     }
 
     fn get_value(&self, id: VarId) -> VarValue {
