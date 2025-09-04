@@ -6,23 +6,26 @@ use stationeers_mips as mips;
 use std::collections::HashMap;
 
 struct State<'a> {
-    registers: HashMap<VarId, Register>,
     mips_program: mips::instructions::Program,
     ir_program: &'a ir::Program,
+    registers: RegisterAllocation,
+    block_start: HashMap<BlockId, usize>,
 }
 
 impl<'a> State<'a> {
-    pub fn new(ir_program: &'a ir::Program) -> Self {
-        Self {
-            registers: Default::default(),
+    pub fn new(ir_program: &'a ir::Program) -> anyhow::Result<Self> {
+        let registers = RegisterAllocation::allocate(&ir_program)?;
+        Ok(Self {
             mips_program: Default::default(),
             ir_program,
-        }
+            registers,
+            block_start: Default::default(),
+        })
     }
 
     fn var_to_register(&self, v: &VarOrConst) -> RegisterOrNumber {
         match v {
-            VarOrConst::Var(id) => RegisterOrNumber::Register(*self.registers.get(id).unwrap()),
+            VarOrConst::Var(id) => RegisterOrNumber::Register(self.registers.get(id).unwrap()),
             VarOrConst::External(_) => {
                 panic!(
                     "not possible to convert external {:?} to RegisterOrNumber",
@@ -36,6 +39,8 @@ impl<'a> State<'a> {
     }
 
     fn generate_block(&mut self, block_id: BlockId) {
+        self.block_start
+            .insert(block_id, self.mips_program.instructions.len());
         let block = &self.ir_program.blocks[block_id.0];
         for ins in &block.instructions {
             match ins {
@@ -54,38 +59,48 @@ impl<'a> State<'a> {
                 }
             }
         }
+        if block.next.len() == 1 {
+            match self.block_start.get(&block.next[0]) {
+                Some(pos) => {
+                    self.mips_program
+                        .instructions
+                        .push(mips::instructions::FlowControl::Jump { a: *pos as i32 }.into());
+                }
+                None => {
+                    self.generate_block(block.next[0]);
+                }
+            }
+        }
     }
 
     fn generate_assignment(&mut self, id: &VarId, value: &VarValue) {
+        let register = self.registers.get(id).unwrap();
         match value {
-            VarValue::Single(_) => todo!(),
+            VarValue::Single(simple) => self.mips_program.instructions.push(
+                mips::instructions::Misc::Move {
+                    register,
+                    a: self.var_to_register(simple),
+                }
+                .into(),
+            ),
             // TODO
             VarValue::BinaryOp { lhs, op, rhs } => match op {
                 ast::BinaryOpcode::Add => {
                     let a = self.var_to_register(lhs);
                     let b = self.var_to_register(rhs);
-                    self.mips_program.instructions.push(
-                        mips::instructions::Arithmetic::Add {
-                            register: Register::R0,
-                            a,
-                            b,
-                        }
-                        .into(),
-                    );
-                    self.registers.insert(*id, Register::R0);
+                    self.mips_program
+                        .instructions
+                        .push(mips::instructions::Arithmetic::Add { register, a, b }.into());
+                    // self.registers.insert(*id, Register::R0);
                 }
                 ast::BinaryOpcode::Greater => {
                     let a = self.var_to_register(lhs);
                     let b = self.var_to_register(rhs);
                     self.mips_program.instructions.push(
-                        mips::instructions::VariableSelection::SelectGreaterThan {
-                            register: Register::R0,
-                            a,
-                            b,
-                        }
-                        .into(),
+                        mips::instructions::VariableSelection::SelectGreaterThan { register, a, b }
+                            .into(),
                     );
-                    self.registers.insert(*id, Register::R0);
+                    // self.registers.insert(*id, Register::R0);
                 }
                 _ => todo!(),
             },
@@ -103,10 +118,10 @@ impl<'a> State<'a> {
                         .into(),
                     );
                 } else if name == "load" {
-                    self.registers.insert(*id, Register::R0);
+                    // self.registers.insert(*id, Register::R0);
                     self.mips_program.instructions.push(
                         mips::instructions::DeviceIo::LoadDeviceVariable {
-                            register: mips::types::Register::R0,
+                            register,
                             device: mips::types::Device::D0,
                             variable: mips::types::DeviceVariable::Setting,
                         }
@@ -116,7 +131,7 @@ impl<'a> State<'a> {
                     todo!()
                 }
             }
-            VarValue::Phi(_) => todo!(),
+            VarValue::Phi(_) => (),
         }
     }
 
@@ -155,10 +170,54 @@ impl<'a> State<'a> {
     }
 }
 
+struct RegisterAllocation {
+    vars: HashMap<VarId, Register>,
+}
+
+impl RegisterAllocation {
+    fn allocate(ir_program: &ir::Program) -> anyhow::Result<Self> {
+        // TODO:
+        let mut next = 0;
+        let mut vars = HashMap::default();
+        // First, assign registers for PHI variables
+        for block in &ir_program.blocks {
+            for ins in &block.instructions {
+                if let ir::Instruction::Assignment { id, value } = ins {
+                    if let ir::VarValue::Phi(phi) = value {
+                        vars.insert(*id, next.into());
+                        for var_id in phi {
+                            vars.insert(*var_id, next.into());
+                        }
+                        next += 1;
+                    }
+                }
+            }
+        }
+        // The assign all remaining variables.
+        for block in &ir_program.blocks {
+            for ins in &block.instructions {
+                if let ir::Instruction::Assignment { id, value: _ } = ins {
+                    if vars.contains_key(id) {
+                        continue;
+                    }
+                    vars.insert(*id, next.into());
+                    next += 1;
+                }
+            }
+        }
+        Ok(Self { vars })
+    }
+
+    fn get(&self, var_id: &VarId) -> Option<Register> {
+        self.vars.get(var_id).copied()
+    }
+}
+
+// The Program is expected to be in SSA form (each variable assigned once)
 pub fn generate_mips_from_ir(
-    ir_program: &ir::Program,
+    ir_program: ir::Program,
 ) -> anyhow::Result<mips::instructions::Program> {
-    let mut state = State::new(ir_program);
+    let mut state = State::new(&ir_program)?;
     state.generate_block(BlockId(0));
     Ok(state.mips_program)
 }

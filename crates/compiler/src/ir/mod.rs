@@ -163,7 +163,7 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
     tracing::info!("IR Program before optimize:\n{:?}", ir);
     optimize::optimize(&mut ir);
     tracing::info!("IR Program:\n{:?}", ir);
-    Ok(generate_mips_from_ir(&ir)?)
+    Ok(generate_mips_from_ir(ir)?)
 }
 
 pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Program> {

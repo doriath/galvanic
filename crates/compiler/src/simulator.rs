@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use stationeers_mips::instructions::{
     Arithmetic, DeviceIo, FlowControl, Instruction, Misc, VariableSelection,
 };
-use stationeers_mips::types::{Device, DeviceVariable, Number, Register, RegisterOrNumber};
+use stationeers_mips::types::{Device, DeviceVariable, Register, RegisterOrNumber};
 use stationeers_mips::Program;
 
 pub struct Simulator {
@@ -55,7 +55,7 @@ impl Simulator {
 
 impl State {
     fn tick(&mut self, instructions: &[Instruction]) -> TickResult {
-        for i in 0..127 {
+        for _ in 0..127 {
             let ins = match instructions.get(self.sp() as usize) {
                 Some(x) => x,
                 None => return TickResult::End,
@@ -64,7 +64,10 @@ impl State {
             match ins {
                 Instruction::Arithmetic(x) => self.execute_arithmetic(&x),
                 Instruction::DeviceIo(x) => self.execute_deviceio(&x),
-                Instruction::Misc(Misc::Yield) => return TickResult::Yield,
+                Instruction::Misc(Misc::Yield) => {
+                    self.set_sp(self.sp() + 1);
+                    return TickResult::Yield;
+                }
                 Instruction::Misc(x) => self.execute_misc(&x),
                 Instruction::VariableSelection(x) => self.execute_select(&x),
                 Instruction::FlowControl(x) => self.execute_flow(&x),
@@ -136,8 +139,9 @@ impl State {
     fn execute_misc(&mut self, ins: &Misc) {
         match &ins {
             Misc::Move { register, a } => match a {
-                stationeers_mips::types::RegisterOrNumber::Number(Number::Int(x)) => {
-                    self.registers.insert(*register, (*x).into());
+                stationeers_mips::types::RegisterOrNumber::Number(x) => {
+                    let f: f64 = x.into();
+                    self.registers.insert(*register, f);
                 }
                 _ => todo!(),
             },
