@@ -329,6 +329,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn test_empty_program() {
+        let mips = compile("");
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), TickResult::End);
+    }
+
+    #[test]
     fn test_simple_store() {
         let mips = compile(
             r"
