@@ -30,7 +30,7 @@ Statement: Statement = {
     "loop" <Block> => Statement::new_loop(<>),
     <IfStatement> => Statement::new_if(<>),
     "yield" ";" => Statement::new_yield(),
-    "const" <Identifier> "=" <ConstantExpr> ";" => Statement::new_constant(<>),
+    "const" <Identifier> "=" <Expr> ";" => Statement::new_constant(<>),
 };
 
 Identifier: Identifier = <r"[a-zA-Z][a-zA-Z0-9_]*"> => Identifier::from(<>);

@@ -91,12 +91,13 @@
             ayyseeInput.value = `// Welcome to the Ayysee Compiler!
 
 // Example code
-const tank = d0;
-const regulator = d1;
+const base = db;
+const gas_sensor = d1;
 
 loop {
-    let pressure = load(tank, Pressure);
-    store(regulator, Setting, pressure);
+    let temp = load(gas_sensor, Temperature);
+    store(base, Setting, temp);
+    yield;
 }
 `;
             ayyseeInput.placeholder = ayyseeInput.value;

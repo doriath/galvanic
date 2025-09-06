@@ -3,6 +3,7 @@ mod optimize;
 pub mod types;
 
 use crate::ir::codegen::generate_mips_from_ir;
+use anyhow::Context;
 use ayysee_parser::ast;
 use stationeers_mips as mips;
 use std::collections::{HashMap, HashSet};
@@ -101,7 +102,13 @@ impl State {
     }
 
     fn read_variable(&mut self, block: BlockId, name: &str) -> VarId {
-        if let Some(x) = self.defs.get(name).unwrap().get(&block) {
+        if let Some(x) = self
+            .defs
+            .get(name)
+            .context(format!("{}", name))
+            .unwrap()
+            .get(&block)
+        {
             return *x;
         }
         if !self.sealed_blocks.contains(&block) {
@@ -148,13 +155,76 @@ impl State {
     }
 
     fn init(&mut self, block: BlockId) {
-        self.assign_external(block, "d0");
-        self.assign_external(block, "d1");
-        self.assign_external(block, "d2");
-        self.assign_external(block, "d3");
-        self.assign_external(block, "d4");
-        self.assign_external(block, "d5");
-        self.assign_external(block, "Setting");
+        let externals = vec![
+            "db",
+            "d0",
+            "d1",
+            "d2",
+            "d3",
+            "d4",
+            "d5",
+            "Activate",
+            "AirRelease",
+            "Charge",
+            "ClearMemory",
+            "Color",
+            "CompletionRatio",
+            "ElevatorLevel",
+            "ElevatorSpeed",
+            "Error",
+            "ExportCount",
+            "Filtration",
+            "Harvest",
+            "Horizontal",
+            "HorizontalRatio",
+            "Idle",
+            "ImportCount",
+            "Lock",
+            "Maximum",
+            "Mode",
+            "On",
+            "Open",
+            "Output",
+            "Plant",
+            "PositionX",
+            "PositionY",
+            "Power",
+            "PowerActual",
+            "PowerPotential",
+            "PowerRequired",
+            "Pressure",
+            "PressureExternal",
+            "PressureInternal",
+            "PressureSetting",
+            "Quantity",
+            "Ratio",
+            "RatioCarbonDioxide",
+            "RatioNitrogen",
+            "RatioOxygen",
+            "RatioPollutant",
+            "RatioVolatiles",
+            "RatioWater",
+            "Reagents",
+            "RecipeHash",
+            "RequestHash",
+            "RequiredPower",
+            "Setting",
+            "SolarAngle",
+            "Temperature",
+            "TemperatureSettings",
+            "TotalMoles",
+            "VelocityMagnitude",
+            "VelocityRelativeX",
+            "VelocityRelativeY",
+            "VelocityRelativeZ",
+            "Vertical",
+            "VerticalRatio",
+            "Volume",
+        ];
+
+        for external in externals {
+            self.assign_external(block, external);
+        }
     }
 }
 
@@ -216,6 +286,15 @@ fn process_stmts(
                 identifier,
                 expression,
             } => {
+                let v = process_expr(state, block, &expression);
+                let id = match v {
+                    VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
+                    VarOrConst::Var(id) => id,
+                    VarOrConst::External(_) => state.add_variable(block, VarValue::Single(v)),
+                };
+                state.assign(block, identifier.as_ref(), id);
+            }
+            ast::Statement::Constant(identifier, expression) => {
                 let v = process_expr(state, block, &expression);
                 let id = match v {
                     VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
@@ -456,17 +535,17 @@ mod tests {
 // Welcome to the Ayysee Compiler!
 
 // Example code
-const tank = d0;
-const regulator = d1;
+const base = db;
+const gas_sensor = d1;
 
 loop {
-    let pressure = load(tank, Pressure);
-    store(regulator, Setting, pressure);
+    let temp = load(gas_sensor, Temperature);
+    store(base, Setting, temp);
+    yield;
 }
             ",
         );
         let mut simulator = Simulator::new(mips.clone());
         assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
-        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
     }
 }

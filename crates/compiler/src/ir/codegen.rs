@@ -108,11 +108,8 @@ impl<'a> State<'a> {
                 if name == "store" {
                     self.mips_program.instructions.push(
                         mips::instructions::DeviceIo::StoreDeviceVariable {
-                            // TODO
-                            device: mips::types::Device::D0,
-                            // TODO
-                            variable: mips::types::DeviceVariable::Setting,
-                            // TODO
+                            device: args[0].external().unwrap().parse().unwrap(),
+                            variable: args[1].external().unwrap().parse().unwrap(),
                             register: self.var_to_register(&args[2]),
                         }
                         .into(),
@@ -122,8 +119,8 @@ impl<'a> State<'a> {
                     self.mips_program.instructions.push(
                         mips::instructions::DeviceIo::LoadDeviceVariable {
                             register,
-                            device: mips::types::Device::D0,
-                            variable: mips::types::DeviceVariable::Setting,
+                            device: args[0].external().unwrap().parse().unwrap(),
+                            variable: args[1].external().unwrap().parse().unwrap(),
                         }
                         .into(),
                     )

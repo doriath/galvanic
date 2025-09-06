@@ -8,6 +8,15 @@ pub enum VarOrConst {
     Const(OrderedFloat<f64>),
 }
 
+impl VarOrConst {
+    pub fn external(&self) -> Option<&String> {
+        match self {
+            VarOrConst::External(s) => Some(s),
+            _ => None,
+        }
+    }
+}
+
 impl From<VarId> for VarOrConst {
     fn from(value: VarId) -> Self {
         VarOrConst::Var(value)

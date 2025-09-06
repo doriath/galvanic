@@ -5,7 +5,6 @@ use clap::Parser;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 mod commands;
-mod error;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

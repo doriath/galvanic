@@ -35,7 +35,7 @@ pub enum Statement {
         alias: Identifier,
     },
     /// Defines a constant value for use in expressions
-    Constant(Identifier, Value),
+    Constant(Identifier, Box<Expr>),
     Function {
         identifier: Identifier,
         parameters: Vec<Identifier>,
@@ -73,8 +73,8 @@ impl Statement {
         Self::Alias { identifier, alias }
     }
 
-    pub fn new_constant(identifier: Identifier, value: Value) -> Self {
-        Self::Constant(identifier, value)
+    pub fn new_constant(identifier: Identifier, expression: Box<Expr>) -> Self {
+        Self::Constant(identifier, expression)
     }
 
     pub fn new_function(identifier: Identifier, parameters: Vec<Identifier>, body: Block) -> Self {
