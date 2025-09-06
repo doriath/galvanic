@@ -8,6 +8,12 @@ use crate::{
 
 grammar;
 
+match {
+    r"\s*" => { }, // The default whitespace skipping is disabled if an `ignore pattern` is specified
+    r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+    _
+}
+
 pub Program: Program = <Statements> => Program::new(<>);
 
 Statements: Vec<Statement> = {
@@ -129,4 +135,3 @@ IfStatement: IfStatement = {
     "if" <Expr> <Block> "else" <Block> => IfStatement::new_if_else(<>),
     "if" <Expr> <Block> => IfStatement::new_if(<>),
 };
-

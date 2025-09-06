@@ -340,6 +340,7 @@ mod tests {
     fn test_simple_store() {
         let mips = compile(
             r"
+                // comments are supported
                 store(d0, Setting, 1);
             ",
         );
@@ -446,5 +447,26 @@ mod tests {
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
         assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 2.0);
+    }
+
+    #[test]
+    fn test_web_example() {
+        let mips = compile(
+            r"
+// Welcome to the Ayysee Compiler!
+
+// Example code
+const tank = d0;
+const regulator = d1;
+
+loop {
+    let pressure = load(tank, Pressure);
+    store(regulator, Setting, pressure);
+}
+            ",
+        );
+        let mut simulator = Simulator::new(mips.clone());
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
     }
 }
