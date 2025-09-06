@@ -9,6 +9,7 @@ build = "build.rs"
 # serde_json = "1.0.87"
 thiserror.workspace = true
 tracing.workspace = true
+anyhow.workspace = true
 
 [dependencies.lalrpop-util]
 version = "0.19.10"

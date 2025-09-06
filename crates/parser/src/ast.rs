@@ -9,6 +9,15 @@ impl Program {
     }
 }
 
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for stmt in &self.statements {
+            writeln!(f, "{}", stmt)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Statement {
     Assignment {
@@ -101,6 +110,12 @@ impl Statement {
 
     pub fn new_yield() -> Self {
         Self::Yield
+    }
+}
+
+impl std::fmt::Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }
 

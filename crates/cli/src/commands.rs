@@ -39,4 +39,6 @@ pub(crate) enum Commands {
         #[clap(short, long, value_enum, default_value_t = CompilationType::default())]
         output: CompilationType,
     },
+    /// Invoke the formatter
+    Format { files: Vec<PathBuf> },
 }
