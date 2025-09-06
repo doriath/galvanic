@@ -403,7 +403,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "phi not implemented in codegen yet"]
     fn test_assignment_in_conditional() {
         let mips = compile(
             r"
@@ -431,7 +430,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "sealed blocks not implemented well yet"]
     fn test_loop() {
         let mips = compile(
             r"
