@@ -222,6 +222,8 @@ impl From<Number> for RegisterOrNumber {
     }
 }
 
+// TODO: rename to LogicType
+// We should support something like "push LogicType.Temperature"
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DeviceVariable {
     Activate,

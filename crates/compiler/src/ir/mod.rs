@@ -4,7 +4,7 @@ pub mod types;
 
 use crate::ir::codegen::generate_mips_from_ir;
 use anyhow::Context;
-use ayysee_parser::ast;
+use ayysee_parser::ast::{self, Expr};
 use stationeers_mips as mips;
 use std::collections::{HashMap, HashSet};
 pub use types::*;
@@ -282,17 +282,29 @@ fn process_stmts(
                 };
                 state.assign(block, identifier.as_ref(), id);
             }
-            ast::Statement::Assignment {
-                identifier,
-                expression,
-            } => {
-                let v = process_expr(state, block, &expression);
+            ast::Statement::Assignment { lhs, rhs } => {
+                let v = process_expr(state, block, &rhs);
                 let id = match v {
-                    VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
                     VarOrConst::Var(id) => id,
-                    VarOrConst::External(_) => state.add_variable(block, VarValue::Single(v)),
+                    _ => state.add_variable(block, v.into()),
                 };
-                state.assign(block, identifier.as_ref(), id);
+                match *(*lhs) {
+                    ast::Expr::Identifier(ref ident) => state.assign(block, ident.as_ref(), id),
+                    ast::Expr::FieldExpr(ref d, ref logic) => {
+                        let arg0 = process_expr(state, block, &Expr::Identifier(d.clone()));
+                        let arg1 = process_expr(state, block, &Expr::Identifier(logic.clone()));
+                        state.add_variable(
+                            block,
+                            VarValue::Call {
+                                name: "store".to_string(),
+                                args: vec![arg0, arg1, id.into()],
+                            },
+                        );
+                    }
+                    _ => anyhow::bail!(
+                        "unsupported assignment, left side is expected to be identifier"
+                    ),
+                }
             }
             ast::Statement::Constant(identifier, expression) => {
                 let v = process_expr(state, block, &expression);
@@ -304,10 +316,30 @@ fn process_stmts(
                 state.assign(block, identifier.as_ref(), id);
             }
             ast::Statement::IfStatement(if_stmt) => match if_stmt {
-                ast::IfStatement::If {
-                    condition: _,
-                    body: _,
-                } => todo!(),
+                ast::IfStatement::If { condition, body } => {
+                    // TODO: remove duplication with the block below
+                    let sealed = state.sealed_blocks.contains(&block);
+                    let cond_id = process_expr(state, block, condition);
+
+                    let block_body = state.new_block(sealed);
+                    state.connect_blocks(block, block_body);
+                    let block_body_end = process_stmts(state, block_body, body.statements())?;
+
+                    let block_else = state.new_block(sealed);
+                    state.connect_blocks(block, block_else);
+                    let else_body_end = block_else;
+
+                    state.program.blocks[block.0]
+                        .instructions
+                        .push(Instruction::Branch {
+                            cond: cond_id,
+                            true_block: block_body,
+                            false_block: block_else,
+                        });
+                    block = state.new_block(sealed);
+                    state.connect_blocks(block_body_end, block);
+                    state.connect_blocks(else_body_end, block);
+                }
                 ast::IfStatement::IfElse {
                     condition,
                     body,
@@ -367,23 +399,33 @@ fn process_stmts(
 
 fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Expr) -> VarOrConst {
     match expr {
-        ayysee_parser::ast::Expr::Constant(v) => VarOrConst::Const(Into::<f64>::into(v).into()),
-        ayysee_parser::ast::Expr::Identifier(ident) => {
-            VarOrConst::Var(state.read_variable(block, ident.as_ref()))
-        }
-        ayysee_parser::ast::Expr::BinaryOp(lhs_expr, op, rhs_expr) => {
+        Expr::Constant(v) => VarOrConst::Const(Into::<f64>::into(v).into()),
+        Expr::Identifier(ident) => VarOrConst::Var(state.read_variable(block, ident.as_ref())),
+        Expr::BinaryOp(lhs_expr, op, rhs_expr) => {
             let lhs = process_expr(state, block, lhs_expr);
             let rhs = process_expr(state, block, rhs_expr);
             VarOrConst::Var(state.add_variable(block, VarValue::BinaryOp { lhs, op: *op, rhs }))
         }
-        ayysee_parser::ast::Expr::UnaryOp(_, _) => todo!(),
-        ayysee_parser::ast::Expr::FunctionCall(ident, args) => {
+        Expr::UnaryOp(_, _) => todo!(),
+        Expr::FunctionCall(ident, args) => {
             let args = args.iter().map(|a| process_expr(state, block, a)).collect();
             VarOrConst::Var(state.add_variable(
                 block,
                 VarValue::Call {
                     name: ident.to_string(),
                     args,
+                },
+            ))
+        }
+        Expr::FieldExpr(d, logic) => {
+            let arg0 = process_expr(state, block, &Expr::Identifier(d.clone()));
+            let arg1 = process_expr(state, block, &Expr::Identifier(logic.clone()));
+
+            VarOrConst::Var(state.add_variable(
+                block,
+                VarValue::Call {
+                    name: "load".to_string(),
+                    args: vec![arg0, arg1],
                 },
             ))
         }
@@ -429,6 +471,18 @@ mod tests {
     }
 
     #[test]
+    fn test_new_store_syntax() {
+        let mips = compile(
+            r"
+                d0.Setting = 1;
+            ",
+        );
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), TickResult::End);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+    }
+
+    #[test]
     fn test_simple_variable() {
         let mips = compile(
             r"
@@ -449,6 +503,19 @@ mod tests {
                 let x = load(d0, Setting);
                 let y = x + 2;
                 store(d0, Setting, y);
+                ",
+        );
+        let mut simulator = Simulator::new(mips);
+        simulator.write(Device::D0, DeviceVariable::Setting, 2.0);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+        assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 4.0);
+    }
+
+    #[test]
+    fn test_new_load() {
+        let mips = compile(
+            r"
+                store(d0, Setting, d0.Setting + 2);
                 ",
         );
         let mut simulator = Simulator::new(mips);
@@ -479,6 +546,31 @@ mod tests {
             simulator.write(Device::D0, DeviceVariable::Setting, 8.0);
             assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
             assert_eq!(simulator.read(Device::D0, DeviceVariable::Setting), 1.0);
+        }
+    }
+
+    #[test]
+    fn test_conditional_without_else() {
+        let mips = compile(
+            r"
+                let x = 1;
+                if d0.Setting > 5 {
+                    let x = 2;
+                }
+                d1.Setting = x;
+            ",
+        );
+        {
+            let mut simulator = Simulator::new(mips.clone());
+            simulator.write(Device::D0, DeviceVariable::Setting, 3.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D1, DeviceVariable::Setting), 1.0);
+        }
+        {
+            let mut simulator = Simulator::new(mips);
+            simulator.write(Device::D0, DeviceVariable::Setting, 8.0);
+            assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+            assert_eq!(simulator.read(Device::D1, DeviceVariable::Setting), 2.0);
         }
     }
 
@@ -532,7 +624,7 @@ mod tests {
     fn test_web_example() {
         let mips = compile(
             r"
-// Welcome to the Ayysee Compiler!
+// Welcome to the ayysee Compiler!
 
 // Example code
 const base = db;
@@ -547,5 +639,22 @@ loop {
         );
         let mut simulator = Simulator::new(mips.clone());
         assert_eq!(simulator.tick(), crate::simulator::TickResult::Yield);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_supports_most_ops() {
+        let mips = compile(
+            r"
+                let x = d0.Temperature * d0.Pressure + d0.Setting / d0.On;
+                if x > 0 || d0.Temperature >= 0 && d0.Power < 0 || d0.Output <= 0 || d0.Lock == 0 || d0.Mode != 1 {
+                    let x = 2;
+                }
+                d1.Setting = x;
+            ",
+        );
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+        // This is just a sanity check that we can process all those operations
     }
 }

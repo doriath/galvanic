@@ -5,6 +5,7 @@ use ordered_float::OrderedFloat;
 pub enum VarOrConst {
     Var(VarId),
     External(String),
+    // TODO: rename to Literal
     Const(OrderedFloat<f64>),
 }
 

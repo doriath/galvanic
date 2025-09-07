@@ -20,9 +20,10 @@ impl std::fmt::Display for Program {
 
 #[derive(Clone, Debug)]
 pub enum Statement {
+    // lhs = rhs;
     Assignment {
-        identifier: Identifier,
-        expression: Box<Expr>,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
     },
     Definition {
         identifier: Identifier,
@@ -55,11 +56,8 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn new_assignment(identifier: Identifier, expression: Box<Expr>) -> Self {
-        Self::Assignment {
-            identifier,
-            expression,
-        }
+    pub fn new_assignment(lhs: Box<Expr>, rhs: Box<Expr>) -> Self {
+        Self::Assignment { lhs, rhs }
     }
 
     pub fn new_definition(identifier: Identifier, expression: Box<Expr>) -> Self {
@@ -126,6 +124,7 @@ pub enum Expr {
     BinaryOp(Box<Expr>, BinaryOpcode, Box<Expr>),
     UnaryOp(UnaryOpcode, Box<Expr>),
     FunctionCall(Identifier, Vec<Box<Expr>>),
+    FieldExpr(Identifier, Identifier),
 }
 
 #[derive(Debug, Clone, Copy)]
