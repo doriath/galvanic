@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayysee to Stationeers MIPS Compiler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark Gray */
+        }
+        .code-font {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .textarea-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .textarea-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937; /* Gray-800 */
+        }
+        .textarea-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563; /* Gray-600 */
+            border-radius: 4px;
+        }
+        .textarea-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* Gray-500 */
+        }
+    </style>
+</head>
+<body class="text-gray-200 h-full flex flex-col antialiased">
+
+    <div class="flex-grow flex flex-col p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="relative mb-6 text-center">
+            <a href="https://github.com/doriath/ayysee/" target="_blank" rel="noopener noreferrer" class="absolute top-0 right-0 text-gray-400 hover:text-white transition-colors duration-200" title="View on GitHub">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.168 6.839 9.492.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0022 12c0-5.523-4.477-10-10-10z" clip-rule="evenodd" />
+                </svg>
+                <span class="sr-only">View on GitHub</span>
+            </a>
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">
+                <span class="text-cyan-400">Ayysee</span> to Stationeers MIPS Compiler
+            </h1>
+            <p class="mt-2 text-lg text-gray-400">Write high-level `ayysee` code and compile it directly to Stationeers MIPS.</p>
+        </header>
+
+        <!-- Main Content: Compiler and Output -->
+        <main class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Ayysee Input Card -->
+            <div class="bg-gray-900 rounded-lg shadow-2xl flex flex-col">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-white">Ayysee Code Input</h2>
+                    <button id="compileBtn" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-md transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-50 shadow-lg">
+                        Compile
+                    </button>
+                </div>
+                <div class="flex-grow p-1">
+                    <textarea id="ayyseeInput" class="code-font w-full h-full bg-gray-900 text-gray-200 p-4 border-none resize-none focus:outline-none focus:ring-0 text-sm rounded-b-lg textarea-scrollbar"></textarea>
+                </div>
+            </div>
+
+            <!-- MIPS Output Card -->
+            <div class="bg-gray-900 rounded-lg shadow-2xl flex flex-col">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-white">Compiled MIPS Output</h2>
+                    <button id="copyBtn" class="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-md transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 shadow-lg">
+                        Copy
+                    </button>
+                </div>
+                <div class="flex-grow p-1 relative">
+                     <textarea readonly id="mipsOutput" class="code-font w-full h-full bg-gray-800 text-gray-300 p-4 border-none resize-none focus:outline-none focus:ring-0 text-sm rounded-b-lg textarea-scrollbar" placeholder="Compiled MIPS code will appear here..."></textarea>
+                     <div id="copyNotification" class="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-md text-sm font-semibold opacity-0 transition-opacity duration-300">
+                        Copied to clipboard!
+                     </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import init, {compile_code} from "./wasm/ayysee_wasm.js";
+        init().then(() => {
+            const ayyseeInput = document.getElementById('ayyseeInput');
+            const mipsOutput = document.getElementById('mipsOutput');
+            const compileBtn = document.getElementById('compileBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const copyNotification = document.getElementById('copyNotification');
+            
+            ayyseeInput.value = `// Welcome to the Ayysee Compiler!
+
+// Example code
+const tank = d0;
+const regulator = d1;
+
+loop {
+    let pressure = load(tank, Pressure);
+    store(regulator, Setting, pressure);
+}
+`;
+            ayyseeInput.placeholder = ayyseeInput.value;
+
+            compileBtn.addEventListener('click', () => {
+                const ayyseeCode = ayyseeInput.value;
+                try {
+                    const compiledMips = compile_code(ayyseeCode);
+                    mipsOutput.value = compiledMips;
+                } catch (error) {
+                    mipsOutput.value = `COMPILATION ERROR:\n${error.message}`;
+                }
+            });
+
+            copyBtn.addEventListener('click', () => {
+                if (mipsOutput.value) {
+                    // Using document.execCommand for wider compatibility in sandboxed environments
+                    mipsOutput.select();
+                    document.execCommand('copy');
+                    
+                    // Show notification
+                    copyNotification.classList.remove('opacity-0');
+                    setTimeout(() => {
+                        copyNotification.classList.add('opacity-0');
+                    }, 2000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
