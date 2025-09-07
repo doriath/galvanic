@@ -84,27 +84,58 @@ impl<'a> State<'a> {
                 }
                 .into(),
             ),
-            // TODO
-            VarValue::BinaryOp { lhs, op, rhs } => match op {
-                ast::BinaryOpcode::Add => {
-                    let a = self.var_to_register(lhs);
-                    let b = self.var_to_register(rhs);
-                    self.mips_program
-                        .instructions
-                        .push(mips::instructions::Arithmetic::Add { register, a, b }.into());
-                    // self.registers.insert(*id, Register::R0);
-                }
-                ast::BinaryOpcode::Greater => {
-                    let a = self.var_to_register(lhs);
-                    let b = self.var_to_register(rhs);
-                    self.mips_program.instructions.push(
+            VarValue::BinaryOp { lhs, op, rhs } => {
+                let a = self.var_to_register(lhs);
+                let b = self.var_to_register(rhs);
+                let instruction = match op {
+                    ast::BinaryOpcode::Add => {
+                        mips::instructions::Arithmetic::Add { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Sub => {
+                        mips::instructions::Arithmetic::Subtract { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Mul => {
+                        mips::instructions::Arithmetic::Multiply { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Div => {
+                        mips::instructions::Arithmetic::Divide { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Conj => {
+                        mips::instructions::Logic::And { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Disj => {
+                        mips::instructions::Logic::Or { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::Equals => {
+                        mips::instructions::VariableSelection::SelectEqual { register, a, b }.into()
+                    }
+                    ast::BinaryOpcode::NotEquals => {
+                        mips::instructions::VariableSelection::SelectNotEqual { register, a, b }
+                            .into()
+                    }
+                    ast::BinaryOpcode::Greater => {
                         mips::instructions::VariableSelection::SelectGreaterThan { register, a, b }
-                            .into(),
-                    );
-                    // self.registers.insert(*id, Register::R0);
-                }
-                _ => todo!(),
-            },
+                            .into()
+                    }
+                    ast::BinaryOpcode::GreaterEquals => {
+                        mips::instructions::VariableSelection::SelectGreaterOrEqual {
+                            register,
+                            a,
+                            b,
+                        }
+                        .into()
+                    }
+                    ast::BinaryOpcode::Lower => {
+                        mips::instructions::VariableSelection::SelectLessThan { register, a, b }
+                            .into()
+                    }
+                    ast::BinaryOpcode::LowerEquals => {
+                        mips::instructions::VariableSelection::SelectLessOrEqual { register, a, b }
+                            .into()
+                    }
+                };
+                self.mips_program.instructions.push(instruction);
+            }
             VarValue::Call { name, args } => {
                 if name == "store" {
                     self.mips_program.instructions.push(
@@ -116,7 +147,6 @@ impl<'a> State<'a> {
                         .into(),
                     );
                 } else if name == "load" {
-                    // self.registers.insert(*id, Register::R0);
                     self.mips_program.instructions.push(
                         mips::instructions::DeviceIo::LoadDeviceVariable {
                             register,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use stationeers_mips::instructions::{
-    Arithmetic, DeviceIo, FlowControl, Instruction, Misc, VariableSelection,
+    Arithmetic, DeviceIo, FlowControl, Instruction, Logic, Misc, VariableSelection,
 };
 use stationeers_mips::types::{Device, DeviceVariable, Register, RegisterOrNumber};
 use stationeers_mips::Program;
@@ -71,6 +71,7 @@ impl State {
                 Instruction::Misc(x) => self.execute_misc(&x),
                 Instruction::VariableSelection(x) => self.execute_select(&x),
                 Instruction::FlowControl(x) => self.execute_flow(&x),
+                Instruction::Logic(x) => self.execute_logic(x),
                 _ => todo!("{}", ins),
             }
             self.set_sp(self.sp() + 1);
@@ -89,13 +90,87 @@ impl State {
         self.registers.insert(Register::Sp, sp as f64);
     }
 
+    fn execute_logic(&mut self, ins: &Logic) {
+        match ins {
+            Logic::And { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a) != 0.0 && self.read(b) != 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            Logic::Nor { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a) == 0.0 && self.read(b) == 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            Logic::Or { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a) != 0.0 || self.read(b) != 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            Logic::Xor { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if (self.read(a) != 0.0) != (self.read(b) != 0.0) {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+        }
+    }
+
     fn execute_arithmetic(&mut self, ins: &Arithmetic) {
         match &ins {
             Arithmetic::Add { register, a, b } => {
                 self.registers
                     .insert(*register, self.read(a) + self.read(b));
             }
-            _ => {}
+            Arithmetic::AbsoluteValue { register, a } => todo!(),
+            Arithmetic::ArcCosine { register, a } => todo!(),
+            Arithmetic::ArcSine { register, a } => todo!(),
+            Arithmetic::ArcTangent { register, a } => todo!(),
+            Arithmetic::Ceiling { register, a } => todo!(),
+            Arithmetic::Cosine { register, a } => todo!(),
+            Arithmetic::Divide { register, a, b } => {
+                self.registers
+                    .insert(*register, self.read(a) / self.read(b));
+            }
+            Arithmetic::Exponent { register, a } => todo!(),
+            Arithmetic::Floor { register, a } => todo!(),
+            Arithmetic::Logarithm { register, a } => todo!(),
+            Arithmetic::Maximum { register, a, b } => todo!(),
+            Arithmetic::Minimum { register, a, b } => todo!(),
+            Arithmetic::Mod { register, a, b } => todo!(),
+            Arithmetic::Multiply { register, a, b } => {
+                self.registers
+                    .insert(*register, self.read(a) * self.read(b));
+            }
+            Arithmetic::Random { register } => todo!(),
+            Arithmetic::Round { register, a } => todo!(),
+            Arithmetic::Sine { register, a } => todo!(),
+            Arithmetic::SquareRoot { register, a } => todo!(),
+            Arithmetic::Subtract { register, a, b } => {
+                self.registers
+                    .insert(*register, self.read(a) - self.read(b));
+            }
+            Arithmetic::Tangent { register, a } => todo!(),
+            Arithmetic::Truncate { register, a } => todo!(),
         }
     }
 
@@ -150,28 +225,106 @@ impl State {
     }
     fn execute_select(&mut self, ins: &VariableSelection) {
         match ins {
-            VariableSelection::SelectApproximatelyEqual { register, a, b, c } => todo!(),
-            VariableSelection::SelectApproximatelyZero { register, a, b } => todo!(),
+            VariableSelection::SelectApproximatelyEqual { register, a, b, c } => {
+                self.registers.insert(
+                    *register,
+                    if (self.read(a) - self.read(b)).abs() < self.read(c) {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            VariableSelection::SelectApproximatelyZero { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a).abs() < self.read(b) {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
             VariableSelection::SelectDeviceNotSet { register, d } => todo!(),
             VariableSelection::SelectDeviceSet { register, d } => todo!(),
-            VariableSelection::Select { register, a, b, c } => todo!(),
-            VariableSelection::SelectEqual { register, a, b } => todo!(),
-            VariableSelection::SelectEqualZero { register, a } => todo!(),
-            VariableSelection::SelectGreaterOrEqual { register, a, b } => todo!(),
-            VariableSelection::SelectGreaterOrEqualZero { register, a } => todo!(),
+            VariableSelection::Select { register, a, b, c } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a) != 0.0 {
+                        self.read(b)
+                    } else {
+                        self.read(c)
+                    },
+                );
+            }
+            VariableSelection::SelectEqual { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) == self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectEqualZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) == 0.0) as i32 as f64);
+            }
+            VariableSelection::SelectGreaterOrEqual { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) >= self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectGreaterOrEqualZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) >= 0.0) as i32 as f64);
+            }
             VariableSelection::SelectGreaterThan { register, a, b } => {
                 self.registers
                     .insert(*register, (self.read(a) > self.read(b)) as i32 as f64);
             }
-            VariableSelection::SelectGreaterThanZero { register, a } => todo!(),
-            VariableSelection::SelectLessOrEqual { register, a, b } => todo!(),
-            VariableSelection::SelectLessOrEqualZero { register, a } => todo!(),
-            VariableSelection::SelectLessThan { register, a, b } => todo!(),
-            VariableSelection::SelectLessThanZero { register, a } => todo!(),
-            VariableSelection::SelectNotApproximatelyEqual { register, a, b, c } => todo!(),
-            VariableSelection::SelectNotApproximatelyZero { register, a, b } => todo!(),
-            VariableSelection::SelectNotEqual { register, a, b } => todo!(),
-            VariableSelection::SelectNotEqualZero { register, a } => todo!(),
+            VariableSelection::SelectGreaterThanZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) > 0.0) as i32 as f64);
+            }
+            VariableSelection::SelectLessOrEqual { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) <= self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectLessOrEqualZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) <= 0.0) as i32 as f64);
+            }
+            VariableSelection::SelectLessThan { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) < self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectLessThanZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) < 0.0) as i32 as f64);
+            }
+            VariableSelection::SelectNotApproximatelyEqual { register, a, b, c } => {
+                self.registers.insert(
+                    *register,
+                    if (self.read(a) - self.read(b)).abs() >= self.read(c) {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            VariableSelection::SelectNotApproximatelyZero { register, a, b } => {
+                self.registers.insert(
+                    *register,
+                    if self.read(a).abs() >= self.read(b) {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                );
+            }
+            VariableSelection::SelectNotEqual { register, a, b } => {
+                self.registers
+                    .insert(*register, (self.read(a) != self.read(b)) as i32 as f64);
+            }
+            VariableSelection::SelectNotEqualZero { register, a } => {
+                self.registers
+                    .insert(*register, (self.read(a) != 0.0) as i32 as f64);
+            }
         }
     }
     fn execute_flow(&mut self, ins: &FlowControl) {
