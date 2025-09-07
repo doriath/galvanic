@@ -1,9 +1,10 @@
 use super::types::{BlockId, VarId, VarOrConst, VarValue};
 use crate::ir;
+use crate::ir::register_allocation::RegisterAllocation;
 use ayysee_parser::ast;
 use mips::types::{Number, Register, RegisterOrNumber};
 use stationeers_mips as mips;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 struct State<'a> {
     mips_program: mips::instructions::Program,
@@ -25,7 +26,7 @@ impl<'a> State<'a> {
 
     fn var_to_register(&self, v: &VarOrConst) -> RegisterOrNumber {
         match v {
-            VarOrConst::Var(id) => RegisterOrNumber::Register(self.registers.get(id).unwrap()),
+            VarOrConst::Var(id) => RegisterOrNumber::Register(self.registers.get(*id).unwrap()),
             VarOrConst::External(_) => {
                 panic!(
                     "not possible to convert external {:?} to RegisterOrNumber",
@@ -74,7 +75,7 @@ impl<'a> State<'a> {
     }
 
     fn generate_assignment(&mut self, id: &VarId, value: &VarValue) {
-        let register = self.registers.get(id).unwrap();
+        let register = self.registers.get(*id).unwrap();
         match value {
             VarValue::Single(simple) => self.mips_program.instructions.push(
                 mips::instructions::Misc::Move {
@@ -164,49 +165,6 @@ impl<'a> State<'a> {
             a: self.mips_program.instructions.len() as i32,
         }
         .into();
-    }
-}
-
-struct RegisterAllocation {
-    vars: HashMap<VarId, Register>,
-}
-
-impl RegisterAllocation {
-    fn allocate(ir_program: &ir::Program) -> anyhow::Result<Self> {
-        // TODO:
-        let mut next = 0;
-        let mut vars = HashMap::default();
-        // First, assign registers for PHI variables
-        for block in &ir_program.blocks {
-            for ins in &block.instructions {
-                if let ir::Instruction::Assignment { id, value } = ins {
-                    if let ir::VarValue::Phi(phi) = value {
-                        vars.insert(*id, next.into());
-                        for var_id in phi {
-                            vars.insert(*var_id, next.into());
-                        }
-                        next += 1;
-                    }
-                }
-            }
-        }
-        // The assign all remaining variables.
-        for block in &ir_program.blocks {
-            for ins in &block.instructions {
-                if let ir::Instruction::Assignment { id, value: _ } = ins {
-                    if vars.contains_key(id) {
-                        continue;
-                    }
-                    vars.insert(*id, next.into());
-                    next += 1;
-                }
-            }
-        }
-        Ok(Self { vars })
-    }
-
-    fn get(&self, var_id: &VarId) -> Option<Register> {
-        self.vars.get(var_id).copied()
     }
 }
 

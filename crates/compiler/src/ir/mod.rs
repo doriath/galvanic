@@ -1,5 +1,6 @@
 mod codegen;
 mod optimize;
+mod register_allocation;
 pub mod types;
 
 use crate::ir::codegen::generate_mips_from_ir;
@@ -642,8 +643,7 @@ loop {
     }
 
     #[test]
-    #[ignore]
-    fn test_supports_most_ops() {
+    fn test_supports_comparators() {
         let mips = compile(
             r"
                 let x = d0.Temperature * d0.Pressure + d0.Setting / d0.On;

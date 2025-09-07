@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use ayysee_parser::ast::BinaryOpcode;
 use ordered_float::OrderedFloat;
 
@@ -15,6 +17,13 @@ impl VarOrConst {
             VarOrConst::External(s) => Some(s),
             _ => None,
         }
+    }
+    pub fn used_vars(&self) -> HashSet<VarId> {
+        let mut ret = HashSet::default();
+        if let VarOrConst::Var(id) = self {
+            ret.insert(*id);
+        }
+        ret
     }
 }
 
@@ -98,7 +107,7 @@ impl std::fmt::Debug for Program {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VarId(pub usize);
 
 #[derive(Debug, Clone)]
@@ -114,6 +123,28 @@ pub enum VarValue {
         name: String,
         args: Vec<VarOrConst>,
     },
+}
+
+impl VarValue {
+    pub fn used_vars(&self) -> HashSet<VarId> {
+        match self {
+            VarValue::Single(x) => x.used_vars(),
+            // TODO: not sure what to return here
+            VarValue::Phi(args) => args.iter().copied().collect(),
+            VarValue::BinaryOp { lhs, op: _, rhs } => {
+                let mut ret = lhs.used_vars();
+                ret.extend(rhs.used_vars());
+                ret
+            }
+            VarValue::Call { name: _, args } => {
+                let mut ret = HashSet::default();
+                for arg in args {
+                    ret.extend(arg.used_vars());
+                }
+                ret
+            }
+        }
+    }
 }
 
 impl From<VarOrConst> for VarValue {
