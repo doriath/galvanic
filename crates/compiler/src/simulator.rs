@@ -71,7 +71,7 @@ impl State {
                 Instruction::Misc(x) => self.execute_misc(&x),
                 Instruction::VariableSelection(x) => self.execute_select(&x),
                 Instruction::FlowControl(x) => self.execute_flow(&x),
-                Instruction::Logic(x) => self.execute_logic(x),
+                Instruction::Logic(x) => self.execute_logic(&x),
                 _ => todo!("{}", ins),
             }
             self.set_sp(self.sp() + 1);
@@ -90,48 +90,29 @@ impl State {
         self.registers.insert(Register::Sp, sp as f64);
     }
 
+    fn read(&self, r: &RegisterOrNumber) -> f64 {
+        match r {
+            RegisterOrNumber::Register(r) => self.registers.get(r).copied().unwrap_or_default(),
+            RegisterOrNumber::Number(x) => x.into(),
+        }
+    }
+
+    fn read_bool(&self, v: &RegisterOrNumber) -> bool {
+        self.read(v) != 0.0
+    }
+
     fn execute_logic(&mut self, ins: &Logic) {
-        match ins {
+        match &ins {
             Logic::And { register, a, b } => {
-                self.registers.insert(
-                    *register,
-                    if self.read(a) != 0.0 && self.read(b) != 0.0 {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                );
+                self.registers
+                    .insert(*register, (self.read_bool(a) && self.read_bool(b)).into());
             }
-            Logic::Nor { register, a, b } => {
-                self.registers.insert(
-                    *register,
-                    if self.read(a) == 0.0 && self.read(b) == 0.0 {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                );
-            }
+            Logic::Nor { register, a, b } => todo!(),
             Logic::Or { register, a, b } => {
-                self.registers.insert(
-                    *register,
-                    if self.read(a) != 0.0 || self.read(b) != 0.0 {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                );
+                self.registers
+                    .insert(*register, (self.read_bool(a) || self.read_bool(b)).into());
             }
-            Logic::Xor { register, a, b } => {
-                self.registers.insert(
-                    *register,
-                    if (self.read(a) != 0.0) != (self.read(b) != 0.0) {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                );
-            }
+            Logic::Xor { register, a, b } => todo!(),
         }
     }
 
@@ -173,14 +154,6 @@ impl State {
             Arithmetic::Truncate { register, a } => todo!(),
         }
     }
-
-    fn read(&self, r: &RegisterOrNumber) -> f64 {
-        match r {
-            RegisterOrNumber::Register(r) => self.registers.get(r).copied().unwrap_or_default(),
-            RegisterOrNumber::Number(x) => x.into(),
-        }
-    }
-
     fn execute_deviceio(&mut self, ins: &DeviceIo) {
         match &ins {
             DeviceIo::StoreDeviceVariable {
@@ -335,7 +308,12 @@ impl State {
             FlowControl::BranchAbsoluteZeroAndLink { a, b, c } => todo!(),
             FlowControl::BranchEqual { a, b, c } => todo!(),
             FlowControl::BranchEqualAndLink { a, b, c } => todo!(),
-            FlowControl::BranchEqualZero { a, b } => todo!(),
+            FlowControl::BranchEqualZero { a, b } => {
+                if self.read(a) == 0.0 {
+                    let idx = self.read(b) as i32;
+                    self.registers.insert(Register::Sp, (idx - 1) as f64);
+                }
+            }
             FlowControl::BranchEqualZeroAndLink { a, b } => todo!(),
             FlowControl::BranchGreaterOrEqual { a, b, c } => todo!(),
             FlowControl::BranchGreaterOrEqualAndLink { a, b, c } => todo!(),
@@ -364,15 +342,7 @@ impl State {
             FlowControl::RelativeBranchApproximatelyEqual { a, b, c, d } => todo!(),
             FlowControl::RelativeBranchApproximatelyZero { a, b, c } => todo!(),
             FlowControl::RelativeBranchEqual { a, b, c } => todo!(),
-            FlowControl::RelativeBranchEqualZero { a, b } => {
-                if self.read(a) == 0.0 {
-                    println!("if false");
-                    let idx = self.read(b) as i32;
-                    self.registers.insert(Register::Sp, (idx - 1) as f64);
-                } else {
-                    println!("if true");
-                }
-            }
+            FlowControl::RelativeBranchEqualZero { a, b } => todo!(),
             FlowControl::RelativeBranchGreaterOrEqual { a, b, c } => todo!(),
             FlowControl::RelativeBranchGreaterOrEqualZero { a, b } => todo!(),
             FlowControl::RelativeBranchGreaterThan { a, b, c } => todo!(),

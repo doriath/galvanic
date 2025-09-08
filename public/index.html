@@ -100,8 +100,12 @@ const base = db;
 const gas_sensor = d1;
 
 loop {
-    let temp = load(gas_sensor, Temperature);
-    store(base, Setting, temp);
+    let temp = gas_sensor.Temperature;
+    if temp > 200 {
+        base.Setting = 0;
+    } else {
+        base.Setting = 1;
+    }
     yield;
 }
 `;

@@ -12,6 +12,7 @@ pub use types::*;
 
 struct State {
     defs: HashMap<String, HashMap<BlockId, VarId>>,
+    consts: HashMap<String, VarOrConst>,
     next_var: VarId,
     program: Program,
     sealed_blocks: HashSet<BlockId>,
@@ -22,6 +23,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             defs: Default::default(),
+            consts: Default::default(),
             next_var: VarId(1),
             program: Default::default(),
             sealed_blocks: Default::default(),
@@ -224,7 +226,8 @@ impl State {
         ];
 
         for external in externals {
-            self.assign_external(block, external);
+            self.consts
+                .insert(external.into(), VarOrConst::External(external.into()));
         }
     }
 }
@@ -309,64 +312,24 @@ fn process_stmts(
             }
             ast::Statement::Constant(identifier, expression) => {
                 let v = process_expr(state, block, &expression);
-                let id = match v {
-                    VarOrConst::Const(_) => state.add_variable(block, VarValue::Single(v)),
-                    VarOrConst::Var(id) => id,
-                    VarOrConst::External(_) => state.add_variable(block, VarValue::Single(v)),
-                };
-                state.assign(block, identifier.as_ref(), id);
+                state.consts.insert(identifier.to_string(), v);
             }
             ast::Statement::IfStatement(if_stmt) => match if_stmt {
                 ast::IfStatement::If { condition, body } => {
-                    // TODO: remove duplication with the block below
-                    let sealed = state.sealed_blocks.contains(&block);
-                    let cond_id = process_expr(state, block, condition);
-
-                    let block_body = state.new_block(sealed);
-                    state.connect_blocks(block, block_body);
-                    let block_body_end = process_stmts(state, block_body, body.statements())?;
-
-                    let block_else = state.new_block(sealed);
-                    state.connect_blocks(block, block_else);
-                    let else_body_end = block_else;
-
-                    state.program.blocks[block.0]
-                        .instructions
-                        .push(Instruction::Branch {
-                            cond: cond_id,
-                            true_block: block_body,
-                            false_block: block_else,
-                        });
-                    block = state.new_block(sealed);
-                    state.connect_blocks(block_body_end, block);
-                    state.connect_blocks(else_body_end, block);
+                    process_cond(
+                        state,
+                        &mut block,
+                        condition,
+                        body,
+                        &ast::Block::Statements(vec![]),
+                    )?;
                 }
                 ast::IfStatement::IfElse {
                     condition,
                     body,
                     else_body,
                 } => {
-                    let sealed = state.sealed_blocks.contains(&block);
-                    let cond_id = process_expr(state, block, condition);
-
-                    let block_body = state.new_block(sealed);
-                    state.connect_blocks(block, block_body);
-                    let block_body_end = process_stmts(state, block_body, body.statements())?;
-
-                    let block_else = state.new_block(sealed);
-                    state.connect_blocks(block, block_else);
-                    let else_body_end = process_stmts(state, block_else, else_body.statements())?;
-
-                    state.program.blocks[block.0]
-                        .instructions
-                        .push(Instruction::Branch {
-                            cond: cond_id,
-                            true_block: block_body,
-                            false_block: block_else,
-                        });
-                    block = state.new_block(sealed);
-                    state.connect_blocks(block_body_end, block);
-                    state.connect_blocks(else_body_end, block);
+                    process_cond(state, &mut block, condition, body, else_body)?;
                 }
             },
             ast::Statement::Loop { body } => {
@@ -398,10 +361,47 @@ fn process_stmts(
     Ok(block)
 }
 
+fn process_cond(
+    state: &mut State,
+    block_id: &mut BlockId,
+    cond_expr: &Expr,
+    true_block: &ast::Block,
+    false_block: &ast::Block,
+) -> anyhow::Result<()> {
+    let sealed = state.sealed_blocks.contains(&block_id);
+    let cond_var = process_expr(state, *block_id, cond_expr);
+
+    let true_block_id_start = state.new_block(sealed);
+    state.connect_blocks(*block_id, true_block_id_start);
+    let true_block_id_end = process_stmts(state, true_block_id_start, true_block.statements())?;
+
+    let false_block_id_start = state.new_block(sealed);
+    state.connect_blocks(*block_id, false_block_id_start);
+    let false_block_id_end = process_stmts(state, false_block_id_start, false_block.statements())?;
+
+    state.program.blocks[block_id.0]
+        .instructions
+        .push(Instruction::Branch {
+            cond: cond_var,
+            true_block: true_block_id_start,
+            false_block: false_block_id_start,
+        });
+    *block_id = state.new_block(sealed);
+    state.connect_blocks(true_block_id_end, *block_id);
+    state.connect_blocks(false_block_id_end, *block_id);
+    Ok(())
+}
+
 fn process_expr(state: &mut State, block: BlockId, expr: &ayysee_parser::ast::Expr) -> VarOrConst {
     match expr {
         Expr::Constant(v) => VarOrConst::Const(Into::<f64>::into(v).into()),
-        Expr::Identifier(ident) => VarOrConst::Var(state.read_variable(block, ident.as_ref())),
+        Expr::Identifier(ident) => {
+            if let Some(x) = state.consts.get(&ident.to_string()) {
+                x.clone()
+            } else {
+                VarOrConst::Var(state.read_variable(block, ident.as_ref()))
+            }
+        }
         Expr::BinaryOp(lhs_expr, op, rhs_expr) => {
             let lhs = process_expr(state, block, lhs_expr);
             let rhs = process_expr(state, block, rhs_expr);
@@ -632,8 +632,12 @@ const base = db;
 const gas_sensor = d1;
 
 loop {
-    let temp = load(gas_sensor, Temperature);
-    store(base, Setting, temp);
+    let temp = gas_sensor.Temperature;
+    if temp > 200 {
+        base.Setting = 0;
+    } else {
+        base.Setting = 1;
+    }
     yield;
 }
             ",

@@ -11,6 +11,8 @@ struct State<'a> {
     ir_program: &'a ir::Program,
     registers: RegisterAllocation,
     block_start: HashMap<BlockId, usize>,
+    // The location of jumps that want to jump to the end
+    jump_to_end: Vec<usize>,
 }
 
 impl<'a> State<'a> {
@@ -21,6 +23,7 @@ impl<'a> State<'a> {
             ir_program,
             registers,
             block_start: Default::default(),
+            jump_to_end: Default::default(),
         })
     }
 
@@ -39,7 +42,15 @@ impl<'a> State<'a> {
         }
     }
 
-    fn generate_block(&mut self, block_id: BlockId) {
+    fn generate_block(&mut self, block_id: BlockId) -> anyhow::Result<()> {
+        // If block is already generated, just jump to it
+        if let Some(pos) = self.block_start.get(&block_id) {
+            self.mips_program
+                .instructions
+                .push(mips::instructions::FlowControl::Jump { a: *pos as i32 }.into());
+            return Ok(());
+        }
+
         self.block_start
             .insert(block_id, self.mips_program.instructions.len());
         let block = &self.ir_program.blocks[block_id.0];
@@ -51,7 +62,8 @@ impl<'a> State<'a> {
                     true_block,
                     false_block,
                 } => {
-                    self.generate_branch(cond, true_block, false_block);
+                    self.generate_branch(cond, true_block, false_block)?;
+                    return Ok(());
                 }
                 ir::Instruction::Yield => {
                     self.mips_program
@@ -60,18 +72,17 @@ impl<'a> State<'a> {
                 }
             }
         }
-        if block.next.len() == 1 {
-            match self.block_start.get(&block.next[0]) {
-                Some(pos) => {
-                    self.mips_program
-                        .instructions
-                        .push(mips::instructions::FlowControl::Jump { a: *pos as i32 }.into());
-                }
-                None => {
-                    self.generate_block(block.next[0]);
-                }
-            }
+        anyhow::ensure!(block.next.len() < 2);
+        for next in &block.next {
+            self.generate_block(*next)?;
         }
+        if block.next.is_empty() {
+            self.jump_to_end.push(self.mips_program.instructions.len());
+            self.mips_program
+                .instructions
+                .push(mips::instructions::FlowControl::Jump { a: -1 }.into());
+        }
+        Ok(())
     }
 
     fn generate_assignment(&mut self, id: &VarId, value: &VarValue) {
@@ -163,38 +174,34 @@ impl<'a> State<'a> {
         }
     }
 
-    fn generate_branch(&mut self, cond: &VarOrConst, true_block: &BlockId, false_block: &BlockId) {
+    fn generate_branch(
+        &mut self,
+        cond_var: &VarOrConst,
+        true_block_id: &BlockId,
+        false_block_id: &BlockId,
+    ) -> anyhow::Result<()> {
         // record the index of current instruction, so that we can edit it later
         let jeqz_idx = self.mips_program.instructions.len();
         self.mips_program.instructions.push(
             mips::instructions::FlowControl::BranchEqualZero {
-                a: self.var_to_register(cond),
+                a: self.var_to_register(cond_var),
                 b: RegisterOrNumber::Number(Number::Float(0.0)),
             }
             .into(),
         );
 
-        self.generate_block(*true_block);
+        self.generate_block(*true_block_id)?;
+        self.generate_block(*false_block_id)?;
 
-        // Similar to above, record current index, to modify later
-        let jr_idx = self.mips_program.instructions.len();
-        self.mips_program
-            .instructions
-            .push(mips::instructions::FlowControl::Jump { a: 0 }.into());
-
-        self.generate_block(*false_block);
-
-        // Fix relative jumps
+        // Fix branch jump
+        let idx = self.block_start[false_block_id];
         self.mips_program.instructions[jeqz_idx] =
-            mips::instructions::FlowControl::RelativeBranchEqualZero {
-                a: self.var_to_register(cond),
-                b: RegisterOrNumber::Number(Number::Int((jr_idx + 1) as i32)),
+            mips::instructions::FlowControl::BranchEqualZero {
+                a: self.var_to_register(cond_var),
+                b: RegisterOrNumber::Number(Number::Int(idx as i32)),
             }
             .into();
-        self.mips_program.instructions[jr_idx] = mips::instructions::FlowControl::Jump {
-            a: self.mips_program.instructions.len() as i32,
-        }
-        .into();
+        Ok(())
     }
 }
 
@@ -203,6 +210,13 @@ pub fn generate_mips_from_ir(
     ir_program: ir::Program,
 ) -> anyhow::Result<mips::instructions::Program> {
     let mut state = State::new(&ir_program)?;
-    state.generate_block(BlockId(0));
+    state.generate_block(BlockId(0))?;
+    for i in state.jump_to_end {
+        state.mips_program.instructions[i] = mips::instructions::FlowControl::Jump {
+            a: state.mips_program.instructions.len() as i32,
+        }
+        .into();
+    }
+
     Ok(state.mips_program)
 }

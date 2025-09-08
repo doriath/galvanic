@@ -1,6 +1,6 @@
 # ayysee
 
-https://justinrubek.github.io/ayysee
+https://doriath.github.io/ayysee
 
 See example programs in the `examples` directory.
 
