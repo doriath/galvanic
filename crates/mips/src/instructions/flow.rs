@@ -377,8 +377,8 @@ pub enum FlowControl {
     },
     /// Jump execution to line a
     ///
-    /// j int
-    Jump { a: i32 },
+    /// j a(r?|num)
+    Jump { a: RegisterOrNumber },
     /// Jump execution to line a and store next line number in ra
     ///
     /// jal int

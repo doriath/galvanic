@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ayysee_parser::ast::BinaryOpcode;
 use ordered_float::OrderedFloat;
@@ -36,9 +36,18 @@ impl From<VarId> for VarOrConst {
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct BlockId(pub usize);
 
+pub struct Function {
+    pub block_id: BlockId,
+    // TODO: figure out if we should remove those
+    pub params: Vec<VarId>,
+    // TODO: remove, unused
+    pub ret: Option<VarId>,
+}
+
 #[derive(Default)]
 pub struct Program {
     pub blocks: Vec<Block>,
+    pub functions: HashMap<String, Function>,
 }
 
 #[derive(Default)]
@@ -63,6 +72,7 @@ pub enum Instruction {
         false_block: BlockId,
     },
     Yield,
+    Return(VarId),
 }
 
 impl std::fmt::Debug for Instruction {
@@ -83,6 +93,7 @@ impl std::fmt::Debug for Instruction {
                 )
             }
             Instruction::Yield => write!(f, "yield"),
+            Instruction::Return(var_id) => write!(f, "return {:?}", var_id),
         }
     }
 }
@@ -102,6 +113,14 @@ impl std::fmt::Debug for Program {
             writeln!(f, "Block {i}")?;
             write!(f, "{:?}", block)?;
             writeln!(f, "Next: {:?}", block.next)?;
+        }
+
+        for (name, fun) in &self.functions {
+            writeln!(
+                f,
+                "fn {}({:?}) -> {:?} {{ BlockId({:?}) }}",
+                name, fun.params, fun.ret, fun.block_id
+            )?;
         }
         Ok(())
     }
@@ -123,6 +142,7 @@ pub enum VarValue {
         name: String,
         args: Vec<VarOrConst>,
     },
+    Param,
 }
 
 impl VarValue {
@@ -143,6 +163,7 @@ impl VarValue {
                 }
                 ret
             }
+            VarValue::Param => HashSet::default(),
         }
     }
 }

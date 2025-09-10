@@ -43,6 +43,10 @@ fn remove_unused_variables(program: &mut Program) -> bool {
                     }
                 }
                 Instruction::Yield => (),
+                Instruction::Return(var_id) => {
+                    used.insert(*var_id);
+                    stack.push(*var_id);
+                }
             }
         }
     }
@@ -79,6 +83,7 @@ fn remove_unused_variables(program: &mut Program) -> bool {
                         }
                     }
                 }
+                VarValue::Param => (),
             }
         }
     }
@@ -130,6 +135,7 @@ impl<'a> InlineState<'a> {
                 let args: Vec<VarOrConst> = args.iter().map(|a| self.inline_simple(a)).collect();
                 self.set_var(id, VarValue::Call { name, args });
             }
+            VarValue::Param => (),
         }
     }
 
@@ -137,10 +143,13 @@ impl<'a> InlineState<'a> {
         // TODO: optimize this, we should record the location of everything
         for (block_id, block) in self.program.blocks.iter().enumerate() {
             for (idx, ins) in block.instructions.iter().enumerate() {
-                if let Instruction::Assignment { id, value: _ } = ins {
-                    if var_id == *id {
-                        return (BlockId(block_id), idx);
+                match ins {
+                    Instruction::Assignment { id, value: _ } => {
+                        if var_id == *id {
+                            return (BlockId(block_id), idx);
+                        }
                     }
+                    _ => (),
                 }
             }
         }
@@ -215,6 +224,7 @@ mod tests {
                 next: vec![],
                 prev: vec![],
             }],
+            functions: Default::default(),
         };
         optimize(&mut program);
         assert_eq!(program.blocks[0].instructions.len(), 0);

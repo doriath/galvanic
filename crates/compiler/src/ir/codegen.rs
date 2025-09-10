@@ -2,9 +2,9 @@ use super::types::{BlockId, VarId, VarOrConst, VarValue};
 use crate::ir;
 use crate::ir::register_allocation::RegisterAllocation;
 use ayysee_parser::ast;
-use mips::types::{Number, Register, RegisterOrNumber};
+use mips::types::{Register, RegisterOrNumber};
 use stationeers_mips as mips;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 struct State<'a> {
     mips_program: mips::instructions::Program,
@@ -36,18 +36,19 @@ impl<'a> State<'a> {
                     v
                 )
             }
-            VarOrConst::Const(x) => {
-                RegisterOrNumber::Number(Number::Float(Into::<f64>::into(*x) as f32))
-            }
+            VarOrConst::Const(x) => RegisterOrNumber::Number((*x).into()),
         }
     }
 
     fn generate_block(&mut self, block_id: BlockId) -> anyhow::Result<()> {
         // If block is already generated, just jump to it
         if let Some(pos) = self.block_start.get(&block_id) {
-            self.mips_program
-                .instructions
-                .push(mips::instructions::FlowControl::Jump { a: *pos as i32 }.into());
+            self.mips_program.instructions.push(
+                mips::instructions::FlowControl::Jump {
+                    a: (*pos as f64).into(),
+                }
+                .into(),
+            );
             return Ok(());
         }
 
@@ -56,7 +57,7 @@ impl<'a> State<'a> {
         let block = &self.ir_program.blocks[block_id.0];
         for ins in &block.instructions {
             match ins {
-                ir::Instruction::Assignment { id, value } => self.generate_assignment(id, value),
+                ir::Instruction::Assignment { id, value } => self.generate_assignment(id, value)?,
                 ir::Instruction::Branch {
                     cond,
                     true_block,
@@ -70,6 +71,14 @@ impl<'a> State<'a> {
                         .instructions
                         .push(mips::instructions::Instruction::new_yield());
                 }
+                ir::Instruction::Return(_) => {
+                    self.mips_program.instructions.push(
+                        mips::instructions::FlowControl::Jump {
+                            a: Register::Ra.into(),
+                        }
+                        .into(),
+                    );
+                }
             }
         }
         anyhow::ensure!(block.next.len() < 2);
@@ -80,12 +89,12 @@ impl<'a> State<'a> {
             self.jump_to_end.push(self.mips_program.instructions.len());
             self.mips_program
                 .instructions
-                .push(mips::instructions::FlowControl::Jump { a: -1 }.into());
+                .push(mips::instructions::FlowControl::Jump { a: (-1.0).into() }.into());
         }
         Ok(())
     }
 
-    fn generate_assignment(&mut self, id: &VarId, value: &VarValue) {
+    fn generate_assignment(&mut self, id: &VarId, value: &VarValue) -> anyhow::Result<()> {
         let register = self.registers.get(*id).unwrap();
         match value {
             VarValue::Single(simple) => self.mips_program.instructions.push(
@@ -167,11 +176,24 @@ impl<'a> State<'a> {
                         .into(),
                     )
                 } else {
-                    todo!()
+                    let f = match self.ir_program.functions.get(name) {
+                        None => anyhow::bail!("function {} not found", name),
+                        Some(x) => x,
+                    };
+                    // This has to be fixed later.
+                    self.mips_program.instructions.push(
+                        mips::instructions::FlowControl::Jump {
+                            a: (f.block_id.0 as f64).into(),
+                        }
+                        .into(),
+                    );
+                    // self.generate_block(f.block_id)?;
                 }
             }
             VarValue::Phi(_) => (),
+            VarValue::Param => (),
         }
+        Ok(())
     }
 
     fn generate_branch(
@@ -185,7 +207,7 @@ impl<'a> State<'a> {
         self.mips_program.instructions.push(
             mips::instructions::FlowControl::BranchEqualZero {
                 a: self.var_to_register(cond_var),
-                b: RegisterOrNumber::Number(Number::Float(0.0)),
+                b: (-1.0).into(),
             }
             .into(),
         );
@@ -198,7 +220,7 @@ impl<'a> State<'a> {
         self.mips_program.instructions[jeqz_idx] =
             mips::instructions::FlowControl::BranchEqualZero {
                 a: self.var_to_register(cond_var),
-                b: RegisterOrNumber::Number(Number::Int(idx as i32)),
+                b: RegisterOrNumber::Number(idx as f64),
             }
             .into();
         Ok(())
@@ -213,7 +235,7 @@ pub fn generate_mips_from_ir(
     state.generate_block(BlockId(0))?;
     for i in state.jump_to_end {
         state.mips_program.instructions[i] = mips::instructions::FlowControl::Jump {
-            a: state.mips_program.instructions.len() as i32,
+            a: (state.mips_program.instructions.len() as f64).into(),
         }
         .into();
     }

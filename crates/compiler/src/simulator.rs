@@ -93,7 +93,7 @@ impl State {
     fn read(&self, r: &RegisterOrNumber) -> f64 {
         match r {
             RegisterOrNumber::Register(r) => self.registers.get(r).copied().unwrap_or_default(),
-            RegisterOrNumber::Number(x) => x.into(),
+            RegisterOrNumber::Number(x) => *x,
         }
     }
 
@@ -107,12 +107,11 @@ impl State {
                 self.registers
                     .insert(*register, (self.read_bool(a) && self.read_bool(b)).into());
             }
-            Logic::Nor { register, a, b } => todo!(),
             Logic::Or { register, a, b } => {
                 self.registers
                     .insert(*register, (self.read_bool(a) || self.read_bool(b)).into());
             }
-            Logic::Xor { register, a, b } => todo!(),
+            _ => todo!(),
         }
     }
 
@@ -122,36 +121,19 @@ impl State {
                 self.registers
                     .insert(*register, self.read(a) + self.read(b));
             }
-            Arithmetic::AbsoluteValue { register, a } => todo!(),
-            Arithmetic::ArcCosine { register, a } => todo!(),
-            Arithmetic::ArcSine { register, a } => todo!(),
-            Arithmetic::ArcTangent { register, a } => todo!(),
-            Arithmetic::Ceiling { register, a } => todo!(),
-            Arithmetic::Cosine { register, a } => todo!(),
             Arithmetic::Divide { register, a, b } => {
                 self.registers
                     .insert(*register, self.read(a) / self.read(b));
             }
-            Arithmetic::Exponent { register, a } => todo!(),
-            Arithmetic::Floor { register, a } => todo!(),
-            Arithmetic::Logarithm { register, a } => todo!(),
-            Arithmetic::Maximum { register, a, b } => todo!(),
-            Arithmetic::Minimum { register, a, b } => todo!(),
-            Arithmetic::Mod { register, a, b } => todo!(),
             Arithmetic::Multiply { register, a, b } => {
                 self.registers
                     .insert(*register, self.read(a) * self.read(b));
             }
-            Arithmetic::Random { register } => todo!(),
-            Arithmetic::Round { register, a } => todo!(),
-            Arithmetic::Sine { register, a } => todo!(),
-            Arithmetic::SquareRoot { register, a } => todo!(),
             Arithmetic::Subtract { register, a, b } => {
                 self.registers
                     .insert(*register, self.read(a) - self.read(b));
             }
-            Arithmetic::Tangent { register, a } => todo!(),
-            Arithmetic::Truncate { register, a } => todo!(),
+            _ => todo!(),
         }
     }
     fn execute_deviceio(&mut self, ins: &DeviceIo) {
@@ -188,8 +170,7 @@ impl State {
         match &ins {
             Misc::Move { register, a } => match a {
                 stationeers_mips::types::RegisterOrNumber::Number(x) => {
-                    let f: f64 = x.into();
-                    self.registers.insert(*register, f);
+                    self.registers.insert(*register, *x);
                 }
                 _ => todo!(),
             },
@@ -218,8 +199,6 @@ impl State {
                     },
                 );
             }
-            VariableSelection::SelectDeviceNotSet { register, d } => todo!(),
-            VariableSelection::SelectDeviceSet { register, d } => todo!(),
             VariableSelection::Select { register, a, b, c } => {
                 self.registers.insert(
                     *register,
@@ -298,68 +277,21 @@ impl State {
                 self.registers
                     .insert(*register, (self.read(a) != 0.0) as i32 as f64);
             }
+            _ => todo!(),
         }
     }
     fn execute_flow(&mut self, ins: &FlowControl) {
         match ins {
-            FlowControl::BranchAbsoluteLessThan { a, b, c, d } => todo!(),
-            FlowControl::BranchAbsoluteLessThanAndLink { a, b, c, d } => todo!(),
-            FlowControl::BranchAbsoluteZero { a, b, c } => todo!(),
-            FlowControl::BranchAbsoluteZeroAndLink { a, b, c } => todo!(),
-            FlowControl::BranchEqual { a, b, c } => todo!(),
-            FlowControl::BranchEqualAndLink { a, b, c } => todo!(),
             FlowControl::BranchEqualZero { a, b } => {
                 if self.read(a) == 0.0 {
                     let idx = self.read(b) as i32;
                     self.registers.insert(Register::Sp, (idx - 1) as f64);
                 }
             }
-            FlowControl::BranchEqualZeroAndLink { a, b } => todo!(),
-            FlowControl::BranchGreaterOrEqual { a, b, c } => todo!(),
-            FlowControl::BranchGreaterOrEqualAndLink { a, b, c } => todo!(),
-            FlowControl::BranchGreaterOrEqualZero { a, b } => todo!(),
-            FlowControl::BranchGreaterOrEqualZeroAndLink { a, b } => todo!(),
-            FlowControl::BranchGreaterThan { a, b, c } => todo!(),
-            FlowControl::BranchGreaterThanAndLink { a, b, c } => todo!(),
-            FlowControl::BranchGreaterThanZero { a, b } => todo!(),
-            FlowControl::BranchGreaterThanZeroAndLink { a, b } => todo!(),
-            FlowControl::BranchLessOrEqual { a, b, c } => todo!(),
-            FlowControl::BranchLessOrEqualAndLink { a, b, c } => todo!(),
-            FlowControl::BranchLessOrEqualZero { a, b } => todo!(),
-            FlowControl::BranchLessOrEqualZeroAndLink { a, b } => todo!(),
-            FlowControl::BranchLessThan { a, b, c } => todo!(),
-            FlowControl::BranchLessThanAndLink { a, b, c } => todo!(),
-            FlowControl::BranchLessThanZero { a, b } => todo!(),
-            FlowControl::BranchLessThanZeroAndLink { a, b } => todo!(),
-            FlowControl::BranchNotApproximatelyEqual { a, b, c, d } => todo!(),
-            FlowControl::BranchNotApproximatelyEqualAndLink { a, b, c, d } => todo!(),
-            FlowControl::BranchNotApproximatelyZero { a, b, c } => todo!(),
-            FlowControl::BranchNotApproximatelyZeroAndLink { a, b, c } => todo!(),
-            FlowControl::BranchNotEqual { a, b, c } => todo!(),
-            FlowControl::BranchNotEqualAndLink { a, b, c } => todo!(),
-            FlowControl::BranchNotEqualZero { a, b } => todo!(),
-            FlowControl::BranchNotEqualZeroAndLink { a, b } => todo!(),
-            FlowControl::RelativeBranchApproximatelyEqual { a, b, c, d } => todo!(),
-            FlowControl::RelativeBranchApproximatelyZero { a, b, c } => todo!(),
-            FlowControl::RelativeBranchEqual { a, b, c } => todo!(),
-            FlowControl::RelativeBranchEqualZero { a, b } => todo!(),
-            FlowControl::RelativeBranchGreaterOrEqual { a, b, c } => todo!(),
-            FlowControl::RelativeBranchGreaterOrEqualZero { a, b } => todo!(),
-            FlowControl::RelativeBranchGreaterThan { a, b, c } => todo!(),
-            FlowControl::RelativeBranchGreaterThanZero { a, b } => todo!(),
-            FlowControl::RelativeBranchLessOrEqual { a, b, c } => todo!(),
-            FlowControl::RelativeBranchLessOrEqualZero { a, b } => todo!(),
-            FlowControl::RelativeBranchLessThan { a, b, c } => todo!(),
-            FlowControl::RelativeBranchLessThanZero { a, b } => todo!(),
-            FlowControl::RelativeBranchNotApproximatelyEqual { a, b, c, d } => todo!(),
-            FlowControl::RelativeBranchNotApproximatelyZero { a, b, c } => todo!(),
-            FlowControl::RelativeBranchNotEqual { a, b, c } => todo!(),
-            FlowControl::RelativeBranchNotEqualZero { a, b } => todo!(),
             FlowControl::Jump { a } => {
-                self.registers.insert(Register::Sp, (a - 1) as f64);
+                self.registers.insert(Register::Sp, self.read(a) - 1.0);
             }
-            FlowControl::JumpAndLink { a } => todo!(),
-            FlowControl::JumpRelative { a } => todo!(),
+            _ => todo!(),
         }
     }
 }

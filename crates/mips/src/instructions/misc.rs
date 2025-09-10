@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::types::{Number, Register, RegisterOrNumber};
+use crate::types::{Register, RegisterOrNumber};
 
 /// An enum representing miscellaneous Stationeers MIPS instructions.
 /// These instructions are not part of any other category.
@@ -18,7 +18,7 @@ pub enum Misc {
     /// Creates a label that will be replaced throughout the program with the provided value
     ///
     /// define str num
-    Define { name: String, value: Number },
+    Define { name: String, value: f64 },
     /// Halt and catch fire
     ///
     /// hcf

@@ -31,6 +31,7 @@ Statement: Statement = {
     <IfStatement> => Statement::new_if(<>),
     "yield" ";" => Statement::new_yield(),
     "const" <Identifier> "=" <Expr> ";" => Statement::new_constant(<>),
+    "return" <Expr> ";" => Statement::new_return(<>),
 };
 
 // pub FieldExpr = Expr "." Identifier; 

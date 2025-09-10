@@ -144,47 +144,9 @@ impl From<u8> for Register {
 }
 
 #[derive(Clone, Debug)]
-pub enum Number {
-    Int(i32),
-    Float(f32),
-}
-
-impl std::convert::Into<f64> for &Number {
-    fn into(self) -> f64 {
-        match self {
-            Number::Int(x) => *x as f64,
-            Number::Float(x) => (*x).into(),
-        }
-    }
-}
-
-impl std::fmt::Display for Number {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Number::Int(int) => write!(f, "{}", int),
-            Number::Float(float) => write!(f, "{}", float),
-        }
-    }
-}
-
-impl std::str::FromStr for Number {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(int) = s.parse::<i32>() {
-            Ok(Number::Int(int))
-        } else if let Ok(float) = s.parse::<f32>() {
-            Ok(Number::Float(float))
-        } else {
-            Err(Error::ParseError(s.to_string()))
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
 pub enum RegisterOrNumber {
     Register(Register),
-    Number(Number),
+    Number(f64),
 }
 
 impl std::fmt::Display for RegisterOrNumber {
@@ -202,7 +164,7 @@ impl std::str::FromStr for RegisterOrNumber {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(register) = s.parse::<Register>() {
             Ok(RegisterOrNumber::Register(register))
-        } else if let Ok(number) = s.parse::<Number>() {
+        } else if let Ok(number) = s.parse::<f64>() {
             Ok(RegisterOrNumber::Number(number))
         } else {
             Err(Error::ParseError(s.to_string()))
@@ -216,8 +178,8 @@ impl From<Register> for RegisterOrNumber {
     }
 }
 
-impl From<Number> for RegisterOrNumber {
-    fn from(number: Number) -> Self {
+impl From<f64> for RegisterOrNumber {
+    fn from(number: f64) -> Self {
         RegisterOrNumber::Number(number)
     }
 }

@@ -53,6 +53,7 @@ pub enum Statement {
     IfStatement(IfStatement),
     DeviceStatement(DeviceStatement),
     Yield,
+    Return(Box<Expr>),
 }
 
 impl Statement {
@@ -108,6 +109,10 @@ impl Statement {
 
     pub fn new_yield() -> Self {
         Self::Yield
+    }
+
+    pub fn new_return(expr: Box<Expr>) -> Self {
+        Self::Return(expr)
     }
 }
 

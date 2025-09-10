@@ -220,6 +220,7 @@ fn add_edges_rec(
             false_block: _,
         } => cond.used_vars(),
         ir::Instruction::Yield => HashSet::default(),
+        ir::Instruction::Return(var_id) => [*var_id].into(),
     };
     used |= used_vars.contains(&var_id);
 

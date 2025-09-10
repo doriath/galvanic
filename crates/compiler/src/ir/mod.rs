@@ -104,6 +104,7 @@ impl State {
         id
     }
 
+    // TODO: return error from this method
     fn read_variable(&mut self, block: BlockId, name: &str) -> VarId {
         if let Some(x) = self
             .defs
@@ -157,7 +158,7 @@ impl State {
         id
     }
 
-    fn init(&mut self, block: BlockId) {
+    fn init(&mut self) {
         let externals = vec![
             "db",
             "d0",
@@ -243,7 +244,7 @@ pub fn generate_program(program: ayysee_parser::ast::Program) -> anyhow::Result<
 pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Program> {
     let mut state = State::default();
     let block = state.new_block(true);
-    state.init(block);
+    state.init();
 
     process_stmts(&mut state, block, &program.statements)?;
 
@@ -352,6 +353,37 @@ fn process_stmts(
                 state.program.blocks[block.0]
                     .instructions
                     .push(Instruction::Yield);
+            }
+            ast::Statement::Function {
+                identifier,
+                parameters,
+                body,
+            } => {
+                let fn_block_id = state.new_block(true);
+                state.defs.clear();
+                let mut params = vec![];
+                for p in parameters {
+                    let id = state.add_variable(fn_block_id, VarValue::Param);
+                    params.push(id);
+                    state.assign(fn_block_id, &p.to_string(), id);
+                }
+                process_stmts(state, fn_block_id, body.statements())?;
+                state.defs.clear();
+                state.program.functions.insert(
+                    identifier.to_string(),
+                    Function {
+                        block_id: fn_block_id,
+                        params,
+                        ret: None,
+                    },
+                );
+            }
+            ast::Statement::Return(expr) => {
+                let var = process_expr(state, block, &expr);
+                let var_id = state.add_variable(block, var.into());
+                state.program.blocks[block.0]
+                    .instructions
+                    .push(Instruction::Return(var_id));
             }
             _ => {
                 anyhow::bail!("unimplemented statement {:?}", stmt);
@@ -660,5 +692,22 @@ loop {
         let mut simulator = Simulator::new(mips);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
         // This is just a sanity check that we can process all those operations
+    }
+
+    // TODO: check if inline optimization works well here
+    #[test]
+    fn test_supports_functions() {
+        let mips = compile(
+            r"
+                fn add(a, b) {
+                    let x = a;
+                    return x + b;
+                }
+                db.Setting = add(1, 2);
+            ",
+        );
+        let mut simulator = Simulator::new(mips);
+        assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
+        // TODO: add a check
     }
 }
