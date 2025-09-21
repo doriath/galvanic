@@ -246,6 +246,16 @@ pub fn generate_ir(program: ayysee_parser::ast::Program) -> anyhow::Result<Progr
     let block = state.new_block(true);
     state.init();
 
+    // This is simple program
+    // TODO: also handle programs with explicit main methods
+    state.program.functions.insert(
+        "main".into(),
+        Function {
+            block_id: BlockId(0),
+            params: Default::default(),
+            ret: None,
+        },
+    );
     process_stmts(&mut state, block, &program.statements)?;
 
     Ok(state.program)
@@ -703,11 +713,13 @@ loop {
                     let x = a;
                     return x + b;
                 }
-                db.Setting = add(1, 2);
+                fn main() {
+                    db.Setting = add(1, 2);
+                }
             ",
         );
         let mut simulator = Simulator::new(mips);
         assert_eq!(simulator.tick(), crate::simulator::TickResult::End);
-        // TODO: add a check
+        assert_eq!(simulator.read(Device::Db, DeviceVariable::Setting), 3.0);
     }
 }

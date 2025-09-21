@@ -496,3 +496,32 @@ impl std::str::FromStr for Slot {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub enum JumpDest {
+    Label(String),
+    Register(Register),
+    Number(f64),
+}
+
+impl From<f64> for JumpDest {
+    fn from(value: f64) -> Self {
+        JumpDest::Number(value)
+    }
+}
+
+impl From<Register> for JumpDest {
+    fn from(value: Register) -> Self {
+        JumpDest::Register(value)
+    }
+}
+
+impl std::fmt::Display for JumpDest {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            JumpDest::Label(l) => write!(f, "{}", l),
+            JumpDest::Register(r) => write!(f, "{}", r),
+            JumpDest::Number(n) => write!(f, "{}", n),
+        }
+    }
+}

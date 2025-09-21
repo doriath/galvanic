@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use stationeers_mips::instructions::{
     Arithmetic, DeviceIo, FlowControl, Instruction, Logic, Misc, VariableSelection,
 };
-use stationeers_mips::types::{Device, DeviceVariable, Register, RegisterOrNumber};
+use stationeers_mips::types::{Device, DeviceVariable, JumpDest, Register, RegisterOrNumber};
 use stationeers_mips::Program;
 
 pub struct Simulator {
@@ -289,7 +289,16 @@ impl State {
                 }
             }
             FlowControl::Jump { a } => {
-                self.registers.insert(Register::Sp, self.read(a) - 1.0);
+                match a {
+                    JumpDest::Label(_) => unimplemented!(),
+                    JumpDest::Register(r) => {
+                        self.registers
+                            .insert(Register::Sp, self.read(&(r.clone().into())) - 1.0);
+                    }
+                    JumpDest::Number(a) => {
+                        self.registers.insert(Register::Sp, a - 1.0);
+                    }
+                };
             }
             _ => todo!(),
         }

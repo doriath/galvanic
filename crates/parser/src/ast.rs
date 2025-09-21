@@ -132,7 +132,7 @@ pub enum Expr {
     FieldExpr(Identifier, Identifier),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum BinaryOpcode {
     Add,
     Sub,
@@ -146,6 +146,25 @@ pub enum BinaryOpcode {
     GreaterEquals,
     Lower,
     LowerEquals,
+}
+
+impl std::fmt::Debug for BinaryOpcode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOpcode::Add => write!(f, "+"),
+            BinaryOpcode::Sub => write!(f, "-"),
+            BinaryOpcode::Mul => write!(f, "*"),
+            BinaryOpcode::Div => write!(f, "/"),
+            BinaryOpcode::Conj => write!(f, "&&"),
+            BinaryOpcode::Disj => write!(f, "||"),
+            BinaryOpcode::Equals => write!(f, "=="),
+            BinaryOpcode::NotEquals => write!(f, "!="),
+            BinaryOpcode::Greater => write!(f, ">"),
+            BinaryOpcode::GreaterEquals => write!(f, ">="),
+            BinaryOpcode::Lower => write!(f, "<"),
+            BinaryOpcode::LowerEquals => write!(f, "<="),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

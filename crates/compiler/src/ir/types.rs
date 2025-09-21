@@ -3,12 +3,22 @@ use std::collections::{HashMap, HashSet};
 use ayysee_parser::ast::BinaryOpcode;
 use ordered_float::OrderedFloat;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum VarOrConst {
     Var(VarId),
     External(String),
     // TODO: rename to Literal
     Const(OrderedFloat<f64>),
+}
+
+impl std::fmt::Debug for VarOrConst {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VarOrConst::Var(x) => write!(f, "{:?}", x),
+            VarOrConst::External(x) => write!(f, "{}", x),
+            VarOrConst::Const(x) => write!(f, "{}", x),
+        }
+    }
 }
 
 impl VarOrConst {
@@ -79,7 +89,7 @@ impl std::fmt::Debug for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Instruction::Assignment { id, value } => {
-                write!(f, "v_{} = {:?}", id.0, value)
+                write!(f, "%{} = {:?}", id.0, value)
             }
             Instruction::Branch {
                 cond,
@@ -101,7 +111,7 @@ impl std::fmt::Debug for Instruction {
 impl std::fmt::Debug for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for ins in &self.instructions {
-            writeln!(f, "{:?}", ins)?;
+            writeln!(f, "  {:?}", ins)?;
         }
         Ok(())
     }
@@ -110,15 +120,15 @@ impl std::fmt::Debug for Block {
 impl std::fmt::Debug for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, block) in self.blocks.iter().enumerate() {
-            writeln!(f, "Block {i}")?;
+            writeln!(f, "block_{i}:")?;
             write!(f, "{:?}", block)?;
-            writeln!(f, "Next: {:?}", block.next)?;
+            writeln!(f, "  // next: {:?}", block.next)?;
         }
 
         for (name, fun) in &self.functions {
             writeln!(
                 f,
-                "fn {}({:?}) -> {:?} {{ BlockId({:?}) }}",
+                "fn {}({:?}) -> {:?} {{ {:?} }}",
                 name, fun.params, fun.ret, fun.block_id
             )?;
         }
@@ -126,10 +136,16 @@ impl std::fmt::Debug for Program {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VarId(pub usize);
 
-#[derive(Debug, Clone)]
+impl std::fmt::Debug for VarId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "%{}", self.0)
+    }
+}
+
+#[derive(Clone)]
 pub enum VarValue {
     Single(VarOrConst),
     Phi(Vec<VarId>),
@@ -177,5 +193,35 @@ impl From<VarOrConst> for VarValue {
 impl From<VarId> for VarValue {
     fn from(id: VarId) -> Self {
         VarValue::Single(id.into())
+    }
+}
+
+impl std::fmt::Debug for VarValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VarValue::Single(x) => write!(f, "{:?}", x),
+            VarValue::Phi(phi) => {
+                write!(
+                    f,
+                    "phi({})",
+                    phi.iter()
+                        .map(|x| format!("{:?}", x))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            VarValue::BinaryOp { lhs, op, rhs } => write!(f, "{lhs:?} {op:?} {rhs:?}"),
+            VarValue::Call { name, args } => {
+                write!(
+                    f,
+                    "{name}({})",
+                    args.iter()
+                        .map(|x| format!("{:?}", x))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            VarValue::Param => write!(f, "PARAM"),
+        }
     }
 }

@@ -171,14 +171,14 @@ impl std::fmt::Display for DeviceIo {
 mod tests {
     use crate::{
         instructions::{DeviceIo, Instruction},
-        types::{Device, Number, RegisterOrNumber},
+        types::{Device, RegisterOrNumber},
     };
 
     #[test]
     fn serde_device_io_bdns() {
         let instruction = Instruction::DeviceIo(DeviceIo::BranchDeviceNotSet {
             device: Device::D0,
-            line: RegisterOrNumber::Number(Number::Int(5)),
+            line: RegisterOrNumber::Number(5.0),
         });
 
         let instruction_str = format!("{}", instruction);

@@ -106,16 +106,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ayysee-wasm"
-version = "0.2.1"
-dependencies = [
- "ayysee-compiler",
- "ayysee-parser",
- "tracing",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -315,6 +305,16 @@ name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+
+[[package]]
+name = "galvanic-wasm"
+version = "0.2.1"
+dependencies = [
+ "ayysee-compiler",
+ "ayysee-parser",
+ "tracing",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "getrandom"

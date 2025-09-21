@@ -1,4 +1,4 @@
-use crate::types::RegisterOrNumber;
+use crate::types::{JumpDest, RegisterOrNumber};
 
 /// Instructions for flow control, branching, and jumping
 #[derive(Clone)]
@@ -378,7 +378,7 @@ pub enum FlowControl {
     /// Jump execution to line a
     ///
     /// j a(r?|num)
-    Jump { a: RegisterOrNumber },
+    Jump { a: JumpDest },
     /// Jump execution to line a and store next line number in ra
     ///
     /// jal int
