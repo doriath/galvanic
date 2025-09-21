@@ -1,5 +1,5 @@
 [package]
-name = "ayysee-wasm"
+name = "galvanic-wasm"
 version = { workspace = true }
 edition = { workspace = true }
 
